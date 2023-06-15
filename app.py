@@ -23,6 +23,7 @@ faction_counter = 1
 @app.view("initialize_game")
 def handle_initialize_game(ack, body):
 	ack()
+	log.info(body)
 
 	game_data = {}
 	game_data['factions'] = {}
@@ -33,18 +34,18 @@ def handle_initialize_game(ack, body):
 		for game_option in game_options_raw[game_option_id].keys():
 			if game_option == 'town_name':
 				game_data['town_name'] = game_options_raw[game_option_id][game_option]['value']
+				game_data['town_name_abbreviated'] = game_data['town_name'].lower().replace(" ", "_")
 			elif game_option == 'default_roles':
 				default_roles_list = game_options_raw[game_option_id][game_option]['value'].split(",")
-				game_data['default_roles']
+				game_data['default_roles'] = default_roles_list
 			elif game_option == 'game_recruiting_start':
 				game_data['game_recruiting_start'] = game_options_raw[game_option_id][game_option]['selected_date_time']
 			elif game_option == 'round_length':
-				game_data['round_length'] = game_options_raw[game_option_id][game_option]['value']
+				game_data['round_length'] = float(game_options_raw[game_option_id][game_option]['value'])
 			elif game_option == 'min_players':
-				game_data['min_players'] = game_options_raw[game_option_id][game_option]['value']
+				game_data['min_players'] = int(game_options_raw[game_option_id][game_option]['value'])
 			elif 'faction' in game_option:
 				faction_id = re.search(r'\d+$', game_option).group()
-				print(game_option)
 				if faction_id not in game_data['factions']:
 					game_data['factions'][faction_id] = {}
 				if 'name' in game_option:
@@ -52,11 +53,11 @@ def handle_initialize_game(ack, body):
 				elif 'size_type' in game_option:
 					game_data['factions'][faction_id]['size_type'] = game_options_raw[game_option_id][game_option]['selected_option']['value']
 				elif 'size' in game_option:
-					game_data['factions'][faction_id]['size'] = game_options_raw[game_option_id][game_option]['value']
+					game_data['factions'][faction_id]['size'] = int(game_options_raw[game_option_id][game_option]['value'])
 				elif 'type' in game_option:
 					game_data['factions'][faction_id]['type'] = game_options_raw[game_option_id][game_option]['selected_option']['value']
 
-	log.info(body)
+	game.initialize(game_data)
 
 @app.action("add_faction")
 def handle_add_faction(ack, body, client):
@@ -78,7 +79,7 @@ def handle_add_faction(ack, body, client):
 	})
 
 def faction_block():
-	faction_types = game_roles.keys()
+	faction_types = game.game_roles.keys()
 
 	faction_type_options = []
 	for faction_type in faction_types:
@@ -142,7 +143,7 @@ def admin_initialize(command, message, client, meta_data):
 			"blocks": view_blocks,
 		}
 	)
-	return ""
+	return "Game Initialized"
 
 def admin_outputs (command, message, client, meta_data):
 	return "outputs"
