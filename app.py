@@ -5,48 +5,15 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
 
 import log
+import pprint
+import re
+import game
 
 SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN").strip()
 SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN").strip()
 
 log.logging_level = log.INFO
-
-game_roles={
-	"Town": {
-		"TI": ["Detective", "Examiner", "Investigator", "Lookout", "Profiler", "Psychic", "Sheriff", "Spy", "Tracker"],
-		"TK": ["Vampire Hunter", "Veteran", "Vigilante"],
-		"TP": ["Bodyguard", "Doctor", "Secret Service"],
-		"TS": ["Mayor", "Medium", "Police Officer", "Resurrectionist"]
-	},
-	"Mafia": {
-		"MI": ["Consigliere"],
-		"MK": ["Ambusher", "Mafioso"],
-		"MP": ["Disguiser"],
-		"MS": ["Corrupt Police Officer", "Corrupt Politician", "Diplomat", "Forger", "Godfather"]
-	},
-	"Vampire Coven": {
-		"VK": ["Vampire"]
-	},
-	"Neutral": {
-		"NI": ["Executioner"],
-		"NK": ["Jester"],
-		"NP": ["Guardian Angel", "Survivor"],
-		"NS": ["Amnesiac"]
-	},
-	"Evil": {
-		"EI": ["Cultist"],
-		"ES": ["Necromancer"]
-	},
-	"Fire Starter": {
-		"FK": ["Fire Starter"]
-	},
-	"Renegade": {
-		"RK": ["Renegade"]
-	},
-	"Werewolf": {
-		"WK": ["Werewolf"]
-	}
-}
+pp = pprint.PrettyPrinter(indent=4)
 
 app = App(token=SLACK_BOT_TOKEN)  # initializes your app with your bot token and socket mode handler
 
@@ -56,6 +23,38 @@ faction_counter = 1
 @app.view("initialize_game")
 def handle_initialize_game(ack, body):
 	ack()
+
+	game_data = {}
+	game_data['factions'] = {}
+
+	game_options_raw = body['view']['state']['values']
+
+	for game_option_id in game_options_raw.keys():
+		for game_option in game_options_raw[game_option_id].keys():
+			if game_option == 'town_name':
+				game_data['town_name'] = game_options_raw[game_option_id][game_option]['value']
+			elif game_option == 'default_roles':
+				default_roles_list = game_options_raw[game_option_id][game_option]['value'].split(",")
+				game_data['default_roles']
+			elif game_option == 'game_recruiting_start':
+				game_data['game_recruiting_start'] = game_options_raw[game_option_id][game_option]['selected_date_time']
+			elif game_option == 'round_length':
+				game_data['round_length'] = game_options_raw[game_option_id][game_option]['value']
+			elif game_option == 'min_players':
+				game_data['min_players'] = game_options_raw[game_option_id][game_option]['value']
+			elif 'faction' in game_option:
+				faction_id = re.search(r'\d+$', game_option).group()
+				print(game_option)
+				if faction_id not in game_data['factions']:
+					game_data['factions'][faction_id] = {}
+				if 'name' in game_option:
+					game_data['factions'][faction_id]['name'] = game_options_raw[game_option_id][game_option]['value']
+				elif 'size_type' in game_option:
+					game_data['factions'][faction_id]['size_type'] = game_options_raw[game_option_id][game_option]['selected_option']['value']
+				elif 'size' in game_option:
+					game_data['factions'][faction_id]['size'] = game_options_raw[game_option_id][game_option]['value']
+				elif 'type' in game_option:
+					game_data['factions'][faction_id]['type'] = game_options_raw[game_option_id][game_option]['selected_option']['value']
 
 	log.info(body)
 
@@ -68,8 +67,6 @@ def handle_add_faction(ack, body, client):
 
 	for faction_item in faction_block():
 		body['view']['blocks'].insert(-1, faction_item)
-
-	print(body)
 
 	client.views_update(view_id=body["view"]["id"], hash=body["view"]["hash"], view={
 		"type": body["view"]["type"],
@@ -101,7 +98,8 @@ def faction_block():
 	}, {
 		"type": "input", "label": {"type": "plain_text","text": "Faction Size"}, "element": {"type": "number_input", "is_decimal_allowed": True, "action_id": "faction_size{}".format(faction_counter)}, "optional": False,
 	}, {
-		"type": "input", "element": {"type": "radio_buttons", "options": [{"text": {"type": "plain_text", "text": "Fixed Number",}, "value": "fixed"},{"text": {"type": "plain_text", "text": "Percentage",}, "value": "percent"}], "action_id": "faction_size{}".format(faction_counter)}, "label": {"type": "plain_text", "text": "Faction Size Type",}, "optional": False
+		"type": "input", "element": {"type": "radio_buttons", "options": [{"text": {"type": "plain_text", "text": "Fixed Number",}, "value": "fixed"},{"text": {"type": "plain_text", "text": "Percentage",}, "value": "percent"}], "action_id": 
+"faction_size_type{}".format(faction_counter)}, "label": {"type": "plain_text", "text": "Faction Size Type",}, "optional": False
 	}]
 
 	return faction_block
