@@ -63,7 +63,7 @@ def handle_initialize_game(ack, body):
 				elif 'type' in game_option:
 					game_data['factions'][faction_id]['type'] = game_options_raw[game_option_id][game_option]['selected_option']['value']
 
-	game.initialize(game_data)
+	game.command_initialize(game_data)
 
 @app.action("add_faction")
 def handle_add_faction(ack, body, client):
@@ -158,7 +158,12 @@ def admin_outputs (command, message, client, meta_data):
 	return "outputs"
 
 def admin_start (command, message, client, meta_data):
-	return "start"
+	response = game.command_game_start(message)
+
+	if type(response) == list:
+		response = "List of games: {}".format(', '.join(response))
+
+	return response
 
 def admin_state (command, message, client, meta_data):
 	response = game.get_running_game_state(message)
@@ -194,10 +199,14 @@ admin_commands = {
 }
 
 def game_join (command, message, client, meta_data):
-	print("HERE")
-	pp.pprint(meta_data)
+	user_id = meta_data['user_id']
 
-	return "join"
+	response = game.command_game_join(user_id, message)
+
+	if type(response) == list:
+		response = "List of games: {}".format(', '.join(response))
+
+	return response
 
 def game_leave (command, message, client, meta_data):
 	return "leave"
@@ -334,6 +343,25 @@ private_action_commands = {
 	}
 }
 
+# TO DO: REMOVE THIS!
+def public_action_default(command, message, client, meta_data):
+	return "default"
+        
+public_action_commands = {
+	'hang': {
+		'function': public_action_default,
+		'help_text': "Hang a player."
+	},
+	'juror': {
+		'function': public_action_default,
+		'help_text': "Vote for a juror."
+	},
+	'reval': {
+		'function': public_action_default,
+		'help_text': "Reveal your identity to the town."
+	}
+}
+
 def menu_help(command, menu_options):
 	options = ""
 	for key in menu_options:
@@ -358,9 +386,6 @@ def selection_menu(command, message, menu_options, client, meta_data):
 		return menu_options[option_selected]['function'](command, message, client, meta_data)
 	else:
 		return menu_help (command, menu_options)
-
-def advanced_selection_menu(command, message, menu_options, client, meta_data):
-	return 'channel', selection_menu(command, message, menu_options, client, meta_data)
 
 # The mafia_admin command allows administration of games.
 @app.command("/mafia_admin")
@@ -395,11 +420,18 @@ def mafia_admin(ack: Ack, command: dict, client: WebClient):
 def mafia_game(ack: Ack, command: dict, client: WebClient):
 	ack()
 
+	user_id = command['user_id']
 	channel_id = command['channel_id']
 	message = command['text']
 	command_string = command['command']
 
-	text = selection_menu(command_string, message, game_commands, client, command)
+	player_game_commands = game.get_available_game_commands(user_id)
+	adjusted_game_commands = {}
+
+	for selected_command in player_game_commands:
+		adjusted_game_commands[selected_command] = game_commands[selected_command]
+
+	text = selection_menu(command_string, message, adjusted_game_commands, client, command)
 
 	log.info(command)
 
@@ -418,7 +450,15 @@ def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 	message = command['text']
 	command_string = command['command']
 
-	channel_indicator, text = advanced_selection_menu(command_string, message, private_action_commands, client, command)
+	player_private_commands = game.get_available_private_actions(user_id)
+	adjusted_private_action_commands = {}
+	for selected_command in player_private_commands:
+		adjusted_private_action_commands[selected_command] = private_action_commands[selected_command]
+
+	if len(adjusted_private_action_commands) > 0:
+		text = selection_menu(command_string, message, adjusted_private_action_commands, client, command)
+	else:
+		text = "Currently no available Private Action Commands."
 
 	log.info(command)
 
@@ -431,6 +471,28 @@ def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 @app.command("/mafia_public_action")
 def mafia_public_action(ack: Ack, command: dict, client: WebClient):
 	ack()
+
+	user_id = command['user_id']
+	channel_id = command['channel_id']
+	message = command['text']
+	command_string = command['command']
+
+	player_public_commands = game.get_available_public_actions(user_id)
+	adjusted_public_action_commands = {}
+	for selected_command in player_public_commands:
+		adjusted_public_action_commands[selected_command] = public_action_commands[selected_command]
+
+	if len(adjusted_public_action_commands) > 0:
+		text = selection_menu(command_string, message, adjusted_public_action_commands, client, command)
+	else:
+		text = "Currently no available Public Action Commands."
+
+	log.info(command)
+
+	client.chat_postMessage(
+		channel=channel_id,
+		text=text
+	)
 
 game.initialize_game_state()
 
