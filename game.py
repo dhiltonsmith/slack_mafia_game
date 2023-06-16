@@ -2,6 +2,7 @@ import log
 import pprint
 import json
 import os
+import random
 
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -275,6 +276,16 @@ have broken last night.""",
 		}
 	} }
 
+def get_all_roles():
+	role_list = {}
+
+	for faction in game_roles.keys():
+		for category in game_roles[faction].keys():
+			for role in game_roles[faction][category].keys():
+				role_list[role] = {'faction': faction, 'category': category}
+
+	return role_list
+
 def get_all_role_categories():
 	role_categories = []
 	for faction in game_roles.keys():
@@ -282,23 +293,13 @@ def get_all_role_categories():
 			role_categories.append(category)
 	return role_categories
 
-def get_available_game_commands(user_id):
-	if user_id in players_in_games:
-		return ['leave', 'list', 'role']
-	else:
-		return ['join']
-
-def get_available_private_actions(user_id):
-	if user_id in players_in_games:
-		return ['attack']
-	else:
-		return []
-
-def get_available_public_actions(user_id):
-	if user_id in players_in_games:
-		return['hang', 'juror']
-	else:
-		return []
+def get_role_details(selected_role):
+	for faction in game_roles.keys():
+		for category in game_roles[faction].keys():
+			for role in game_roles[faction][category]:
+				if role == selected_role:
+					return game_roles[faction][category][role]
+	return {}
 
 def get_running_game_state(game):
 	if game in running_games:
@@ -335,6 +336,54 @@ def store_game_state(game_data, state):
 	with open("{}/{}.{}".format(SAVE_PATH, game_data['town_name_abbreviated'], state), "w") as outfile:
 		outfile.write(game_object)
 
+def action_assign_player_roles(running_games, game):
+	all_roles = get_all_roles()
+	for player in running_games[game]['players']:
+		role_chosen = random.choice(list(all_roles.items()))
+		print(role_chosen)
+		role_name = role_chosen[0]
+		role_faction = role_chosen[1]['faction']
+		role_category = role_chosen[1]['category']
+		running_games[game]['players'][player]['role_name'] = role_name
+		running_games[game]['players'][player]['role_faction'] = role_faction
+		running_games[game]['players'][player]['role_category'] = role_category
+		players_in_games[player] = running_games[game]['players'][player]
+
+def command_available_game_commands(user_id):
+        if user_id in players_in_games:
+                return ['leave', 'list', 'role']
+        else:
+                return ['join']
+
+def command_available_private_actions(user_id):
+	private_actions = []
+
+	if user_id in players_in_games:
+		role_details = get_role_details(players_in_games[user_id]['role_name'])
+		if 'private_actions' in role_details:
+			private_actions = role_details['private_actions']
+
+	return private_actions
+
+def command_available_public_actions(user_id):
+	public_actions = []
+
+	if user_id in players_in_games:
+		public_actions = []
+		role_details = get_role_details(players_in_games[user_id]['role_name'])
+
+		if 'public_actions' in role_details:
+			for public_action in role_details['public_actions']:
+				public_actions.append(public_action)
+
+		if 'jurors' in running_games[players_in_games[user_id]['game']] and len(running_games[players_in_games[user_id]['game']]['jurors']) < 3:
+			public_actions.append('juror')
+
+		if 'jurors' in running_games[players_in_games[user_id]['game']] and user_id in running_games[players_in_games[user_id]['game']]['jurors']:
+			public_actions.append('hang')
+
+	return public_actions
+
 def command_game_join(user_id, game):
 	if user_id in players_in_games:
 		return "{} is already in a game.".format(user_id)
@@ -350,10 +399,21 @@ def command_game_join(user_id, game):
 			store_game_state(running_games[game], "open")
 			return "You are joining {}.".format(game)
 		else:
-			return list(running_games.keys())
+			running_games_output = []
+			for game in running_games.keys():
+				if 'round' in running_games[game]:
+					running_games.append("{} (In Progress)".format(game))
+				else:
+					running_games.append(game)
+			return running_games_output
 
 def command_game_start(game):
 	if game in running_games:
+		running_games[game]['round'] = 1
+		running_games[game]['jurors'] = []
+		action_assign_player_roles(running_games, game)
+
+		store_game_state(running_games[game], "open")
 		return "Starting game {}".format(game)
 	else:
 		return list(running_games.keys())

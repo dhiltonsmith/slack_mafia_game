@@ -425,7 +425,7 @@ def mafia_game(ack: Ack, command: dict, client: WebClient):
 	message = command['text']
 	command_string = command['command']
 
-	player_game_commands = game.get_available_game_commands(user_id)
+	player_game_commands = game.command_available_game_commands(user_id)
 	adjusted_game_commands = {}
 
 	for selected_command in player_game_commands:
@@ -450,7 +450,7 @@ def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 	message = command['text']
 	command_string = command['command']
 
-	player_private_commands = game.get_available_private_actions(user_id)
+	player_private_commands = game.command_available_private_actions(user_id)
 	adjusted_private_action_commands = {}
 	for selected_command in player_private_commands:
 		adjusted_private_action_commands[selected_command] = private_action_commands[selected_command]
@@ -477,7 +477,7 @@ def mafia_public_action(ack: Ack, command: dict, client: WebClient):
 	message = command['text']
 	command_string = command['command']
 
-	player_public_commands = game.get_available_public_actions(user_id)
+	player_public_commands = game.command_available_public_actions(user_id)
 	adjusted_public_action_commands = {}
 	for selected_command in player_public_commands:
 		adjusted_public_action_commands[selected_command] = public_action_commands[selected_command]
