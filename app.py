@@ -278,59 +278,59 @@ private_action_commands = {
 	},
 	'event': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Trigger an event for the town."
 	},
 	'examine': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Check the role and the killers role for a dead player."
 	},
 	'forge': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Create a fake examination result for a dead player."
 	},
 	'ignite': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Attack all doused players and leave a Death Note."
 	},
 	'investigate': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Gain information about a player."
 	},
 	'possess': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Guess the role of a player to possess them."
 	},
 	'promote': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Promote a player into the new Mafioso."
 	},
 	'protect': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Protect a player."
 	},
 	'resurrect': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Bring a player back to life."
 	},
 	'role_block': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Stop the action of another player."
 	},
 	'stake': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Attack all identified vampires and leave a Death Note."
 	},
 	'unite': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Unite mafia factions."
 	},
 	'vision': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Receive a vision about other players in the game."
 	},
 	'watch': {
 		'function': private_action_default,
-		'help_text': ""
+		'help_text': "Focus on a specific player."
 	}
 }
 
@@ -358,6 +358,9 @@ def selection_menu(command, message, menu_options, client, meta_data):
 		return menu_options[option_selected]['function'](command, message, client, meta_data)
 	else:
 		return menu_help (command, menu_options)
+
+def advanced_selection_menu(command, message, menu_options, client, meta_data):
+	return 'channel', selection_menu(command, message, menu_options, client, meta_data)
 
 # The mafia_admin command allows administration of games.
 @app.command("/mafia_admin")
@@ -409,6 +412,20 @@ def mafia_game(ack: Ack, command: dict, client: WebClient):
 @app.command("/mafia_private_action") 
 def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 	ack()
+
+	user_id = command['user_id']
+	channel_id = command['channel_id']
+	message = command['text']
+	command_string = command['command']
+
+	channel_indicator, text = advanced_selection_menu(command_string, message, private_action_commands, client, command)
+
+	log.info(command)
+
+	client.chat_postMessage(
+		channel=channel_id,
+		text=text
+	)
 
 # The mafia_public_action command shows information about the game.
 @app.command("/mafia_public_action")
