@@ -17,6 +17,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 app = App(token=SLACK_BOT_TOKEN)  # initializes your app with your bot token and socket mode handler
 
+
 global faction_counter
 faction_counter = 1
 
@@ -86,8 +87,6 @@ def faction_block():
 		if faction_type != "Neutral" and faction_type != "Evil":
 			faction_type_options.append({"text": {"type": "plain_text", "text": faction_type,}, "value": faction_type.lower().replace(" ", "_")})
 
-	
-
 	faction_block =  [{
 		"type": "divider"
 	}, {
@@ -131,6 +130,10 @@ def admin_initialize(command, message, client, meta_data):
 	for faction_item in faction_block():
 		view_blocks.insert(-1, faction_item)
 
+	faction_counter += 1
+	for faction_item in faction_block():
+		view_blocks.insert(-1, faction_item)
+
 	client.views_open(
 	        trigger_id=meta_data["trigger_id"],
         	# A simple view payload for a modal
@@ -152,7 +155,14 @@ def admin_start (command, message, client, meta_data):
 	return "start"
 
 def admin_state (command, message, client, meta_data):
-	return "state"
+	response = game.get_running_game_state(message)
+
+	if type(response) == list:
+		response = "List of games: {}".format(', '.join(response))
+	else:
+		response = "Game State of {} is: {}".format(message, response)
+
+	return response
 
 admin_commands = {
 	'actions': {
@@ -224,6 +234,10 @@ def selection_menu(command, message, menu_options, client, meta_data):
 		message_split = message.split(' ', 1)
 
 		option_selected = message_split[0].lower()
+		if len(message_split) == 1:
+			message = ""
+		else:
+			message = message[message.index(' ') + 1:]
 
 	if option_selected in menu_options:
 		return menu_options[option_selected]['function'](command, message, client, meta_data)
@@ -286,5 +300,7 @@ def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 def mafia_public_action(ack: Ack, command: dict, client: WebClient):
 	ack()
 
+game.initialize_game_state()
+
 if __name__ == "__main__":
-        SocketModeHandler(app, SLACK_APP_TOKEN).start()
+	SocketModeHandler(app, SLACK_APP_TOKEN).start()
