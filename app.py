@@ -227,6 +227,113 @@ game_commands = {
 	}
 }
 
+# TO DO: REMOVE THIS!
+def private_action_default(command, message, client, meta_data):
+	return "default"
+
+private_action_commands = {
+	'action': {
+		'function': private_action_default,
+		'help_text': "Vampires select an action to take."
+	},
+	'alert': {
+		'function': private_action_default,
+		'help_text': "Go on alert to attack all visitors and leave a Death Note."
+	},
+	'ambush': {
+		'function': private_action_default,
+		'help_text': "Set an ambush and leave a Death Note."
+	},
+	'apparate': {
+		'function': private_action_default,
+		'help_text': "Appear in town and interacte as usual for a day."
+	},
+	'attack': {
+		'function': private_action_default,
+		'help_text': "Attack a player and leave a Death Note."
+	},
+	'become': {
+		'function': private_action_default,
+		'help_text': "Change role to match a dead players."
+	},
+	'boost': {
+		'function': private_action_default,
+		'help_text': "Enhance the attack and defense of a player and get information about them."
+	},
+	'choose': {
+		'function': private_action_default,
+		'help_text': "Choose a role within the faction."
+	},
+	'convert': {
+		'function': private_action_default,
+		'help_text': "Select a player to convert into your faction."
+	},
+	'disguise': {
+		'function': private_action_default,
+		'help_text': "Change a player in your mafia to look like a role if investigated."
+	},
+	'douse': {
+		'function': private_action_default,
+		'help_text': "Prepare a player to be ignited."
+	},
+	'event': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'examine': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'forge': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'ignite': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'investigate': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'possess': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'promote': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'protect': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'resurrect': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'role_block': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'stake': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'unite': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'vision': {
+		'function': private_action_default,
+		'help_text': ""
+	},
+	'watch': {
+		'function': private_action_default,
+		'help_text': ""
+	}
+}
+
 def menu_help(command, menu_options):
 	options = ""
 	for key in menu_options:
