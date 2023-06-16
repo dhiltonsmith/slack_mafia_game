@@ -293,6 +293,32 @@ def get_all_role_categories():
 			role_categories.append(category)
 	return role_categories
 
+def get_channel_id(game, channel):
+	current_game = running_games[game]
+	if channel == "town":
+		return current_game['town_channel_id']
+	elif channel == "graveyard":
+		return current_game['graveyard_channel_id']
+	else:
+		for faction_id in current_game['factions'].keys():
+			if current_game['factions'][faction_id]['name'] == channel:
+				return current_game['factions'][faction_id]['channel_id']
+
+	return ""
+
+def get_players(game):
+	current_game = running_games[game]
+	return current_game['players']
+
+def get_players_with_role(game, role):
+	role_players = []
+	players = get_players(game)
+	for player in players:
+		if players[player]['role_name'].lower() == role:
+			role_players.append(player)
+
+	return role_players
+
 def get_role_details(selected_role):
 	for faction in game_roles.keys():
 		for category in game_roles[faction].keys():
@@ -383,6 +409,27 @@ def command_available_public_actions(user_id):
 
 	return public_actions
 
+def command_channels_for_game(game):
+	town_channel = "{}-town-square".format(game)
+	graveyard_channel = "{}-graveyard".format(game)
+	faction_channels = []
+	for faction_id in running_games[game]['factions'].keys():
+		faction_type = running_games[game]['factions'][faction_id]["type"]
+		faction_name = running_games[game]['factions'][faction_id]["name"].lower().replace(" ", "_")
+
+		if 'channel_id' not in running_games[game]['factions'][faction_id]:
+			if faction_type == 'vampire_coven':
+				faction_channels.append({'channel_name': "{}-{}-vampire-coven".format(game, faction_name), 'faction_id': faction_id})
+			if faction_type == 'mafia':
+				faction_channels.append({'channel_name': "{}-{}-family-mafia".format(game, faction_name), 'faction_id': faction_id})
+
+	if 'town_channel_id' in running_games[game]:
+		town_channel = ""
+	if 'graveyard_channel_id' in running_games[game]:
+		graveyard_channel = ""
+
+	return town_channel, faction_channels, graveyard_channel
+
 def command_game_join(user_id, game):
 	if user_id in players_in_games:
 		return "{} is already in a game.".format(user_id)
@@ -417,6 +464,13 @@ def command_game_start(game):
 	else:
 		return list(running_games.keys())
 
+def command_store_channel_information(game, town_channel_id, faction_channels, graveyard_channel_id):
+	running_games[game]['town_channel_id'] = town_channel_id
+	running_games[game]['graveyard_channel_id'] = graveyard_channel_id
+	for faction_channel in faction_channels:
+		running_games[game]['factions'][faction_channel['faction_id']]['channel_id'] = faction_channel['channel_id']
+	store_game_state(running_games[game], "open")
+
 def command_initialize(game_data):
 	role_categories = get_all_role_categories()
 	default_roles = game_data['default_roles']
@@ -448,8 +502,6 @@ def command_intro_message(game, player):
 	response = role_details['background']
 
 	response = "{}\n\nYou are the *{}*.\n\n".format(response, role)
-
-	pp.pprint(role_details)
 
 	if 'private_actions' in role_details:
 		for private_action in role_details['private_actions']:

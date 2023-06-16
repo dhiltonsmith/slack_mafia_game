@@ -3,6 +3,7 @@ import os
 from slack_bolt import App, Ack, Respond
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk import WebClient
+from slack_sdk import errors
 
 import log
 import pprint
@@ -27,10 +28,76 @@ def handler_post_message(client, channel, text):
 		text=text
 	)
 
-def create_channels(client, game):
-	print "HERE"
+def handler_invite_channel(client, channel_id, users):
+	try:
+		client.conversations_invite(channel=channel_id, users=users)
+	except:
+		log.error("Users already in channel.")
 
-def intial_messages(client, game):
+def handler_create_channel(client, channel_name, private):
+	try:
+		response = client.conversations_create(
+			name = channel_name,
+			is_private = private
+		)
+
+		channel_id = response["channel"]["id"]
+	except errors.SlackApiError:
+		log.error("Channel already exists.")
+		response = client.conversations_list()
+		while response["response_metadata"]["next_cursor"]:
+			for channel in response["channels"]:
+				if channel['name'] == channel_name:
+					channel_id = channel['id']
+			response = client.conversations_list(cursor = response["response_metadata"]["next_cursor"])
+		response = client.conversations_list(types="private_channel")
+		while response["response_metadata"]["next_cursor"]:
+			for channel in response["channels"]:
+				pp.pprint(channel)
+				if channel['name'] == channel_name:
+					channel_id = channel['id']
+			response = client.conversations_list(cursor = response["response_metadata"]["next_cursor"], types="public_channel, private_channel")
+
+	handler_invite_channel(client, channel_id, admin_users)
+
+	handler_post_message(client, channel_id, "Hello")
+
+	return channel_id
+
+def add_users_to_channels(client, message):
+	town_channel = game.get_channel_id(message, "town")
+
+	players = game.get_players(message)
+
+	handler_invite_channel(client, town_channel, players)
+
+	medium_players = game.get_players_with_role(message, "medium")
+
+	if len(medium_players) > 0:
+		graveyard_channel = game.get_channel_id(message, "graveyard")
+		handler_invite_channel(client, graveyard_channel, medium_players)
+
+def create_channels(client, message):
+	town_channel, faction_channels, graveyard_channel = game.command_channels_for_game(message)
+
+	if len(town_channel) != 0:
+		print(len(town_channel))
+		town_channel_id = handler_create_channel(client, town_channel, False)
+	else:
+		town_channel_id = game.get_channel_id(message, "town")
+
+	for faction_channel in faction_channels:
+		faction_channel_id = handler_create_channel(client, faction_channel['channel_name'], True)
+		faction_channel['channel_id'] = faction_channel_id
+
+	if len(graveyard_channel) != 0:
+		graveyard_channel_id = handler_create_channel(client, graveyard_channel, True)
+	else:
+		graveyard_channel_id = game.get_channel_id(message, "graveyard")
+
+	game.command_store_channel_information(message, town_channel_id, faction_channels, graveyard_channel_id)
+
+def initial_messages(client, message):
 	for player in game.running_games[message]['players']:
 		player_message = game.command_intro_message(message, player)
 		handler_post_message(client, player, player_message)
@@ -178,6 +245,7 @@ def admin_start (command, message, client, meta_data):
 		response = "List of games: {}".format(', '.join(response))
 	else:
 		create_channels(client, message)
+		add_users_to_channels(client, message)
 		initial_messages(client, message)
 
 	return response
