@@ -56,7 +56,7 @@ game_roles={
 
 def get_running_game_state(game):
 	if game in running_games:
-		return running_games[game]
+		return json.dumps(running_games[game], indent=4)
 	else:
 		return list(running_games.keys())
 
@@ -77,8 +77,6 @@ def initialize_game_state():
 		with open("{}/{}".format(dir_path, file), 'r') as openfile:
 			game_data = json.load(openfile)
 		upload_game_state(game_data)
-
-	pp.pprint(running_games)
 
 def upload_game_state(game_data):
 	game_name = game_data['town_name_abbreviated']

@@ -21,6 +21,11 @@ app = App(token=SLACK_BOT_TOKEN)  # initializes your app with your bot token and
 global faction_counter
 faction_counter = 1
 
+#Stub unless this ends up being needed later.
+@app.event("message")
+def handle_message_events(body, logger):
+    logger.info(body)
+
 @app.view("initialize_game")
 def handle_initialize_game(ack, body):
 	ack()
@@ -104,7 +109,8 @@ def faction_block():
 
 	return faction_block
 
-admin_users = ['derek', 'sri']
+# Derek and Sri as initial admin's.
+admin_users = ['U01HB0HCL5T', 'U03NUHNPBUK']
 
 def admin_actions(command, message, client, meta_data):
 	return "actions"
@@ -188,6 +194,9 @@ admin_commands = {
 }
 
 def game_join (command, message, client, meta_data):
+	print("HERE")
+	pp.pprint(meta_data)
+
 	return "join"
 
 def game_leave (command, message, client, meta_data):
@@ -202,8 +211,7 @@ def game_role (command, message, client, meta_data):
 game_commands = {
 	'join': {
 		'function': game_join,
-		'help_text': "Join the game."
-		
+		'help_text': "Join a game."
 	},
 	'leave': {
 		'function': game_leave,
@@ -249,14 +257,14 @@ def selection_menu(command, message, menu_options, client, meta_data):
 def mafia_admin(ack: Ack, command: dict, client: WebClient):
 	ack()
 
-	user_name = command['user_name']
+	user_id = command['user_id']
 	channel_id = command['channel_id']
 	message = command['text']
 	command_string = command['command']
 
 	is_admin = False
 
-	if user_name in admin_users:
+	if user_id in admin_users:
 		is_admin = True
 
 	if is_admin:
@@ -267,7 +275,7 @@ def mafia_admin(ack: Ack, command: dict, client: WebClient):
 	log.info(command)
 
 	client.chat_postMessage(
-		channel=channel_id,
+		channel=user_id,
 		text=text
 	)
 
