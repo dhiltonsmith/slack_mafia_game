@@ -336,11 +336,10 @@ def store_game_state(game_data, state):
 	with open("{}/{}.{}".format(SAVE_PATH, game_data['town_name_abbreviated'], state), "w") as outfile:
 		outfile.write(game_object)
 
-def action_assign_player_roles(running_games, game):
+def action_assign_player_roles(game):
 	all_roles = get_all_roles()
 	for player in running_games[game]['players']:
 		role_chosen = random.choice(list(all_roles.items()))
-		print(role_chosen)
 		role_name = role_chosen[0]
 		role_faction = role_chosen[1]['faction']
 		role_category = role_chosen[1]['category']
@@ -411,10 +410,10 @@ def command_game_start(game):
 	if game in running_games:
 		running_games[game]['round'] = 1
 		running_games[game]['jurors'] = []
-		action_assign_player_roles(running_games, game)
+		action_assign_player_roles(game)
 
 		store_game_state(running_games[game], "open")
-		return "Starting game {}".format(game)
+		return "*Starting game {}.*".format(game)
 	else:
 		return list(running_games.keys())
 
@@ -440,3 +439,24 @@ def command_initialize(game_data):
 			log.debug("Setting faction {} size to {}".format(game_data['factions'][faction_id]['name'], MIN_FACTION_SIZE))
 
 	upload_game_state(game_data)
+
+def command_intro_message(game, player):
+	role = running_games[game]['players'][player]['role_name']
+	
+	role_details = get_role_details(role)
+
+	response = role_details['background']
+
+	response = "{}\n\nYou are the *{}*.\n\n".format(response, role)
+
+	pp.pprint(role_details)
+
+	if 'private_actions' in role_details:
+		for private_action in role_details['private_actions']:
+			response = "{}/mafia_private_action {}\n".format(response, private_action)
+
+	if 'public_actions' in role_details:
+		for public_action in role_details['public_actions']:
+			response = "{}/mafia_public_action {}\n".format(response, public_action)
+
+	return response
