@@ -250,7 +250,7 @@ def admin_start (command, message, client, meta_data):
 
 	if type(response) == list:
 		response = "List of games: {}".format(', '.join(response))
-	else:
+	elif 'already running' not in response:
 		create_channels(client, message)
 		add_users_to_channels(client, message)
 		initial_messages(client, message)
@@ -291,9 +291,7 @@ admin_commands = {
 }
 
 def game_join (command, message, client, meta_data):
-	user_id = meta_data['user_id']
-
-	response = game.command_game_join(user_id, message)
+	response = game.command_game_join(meta_data, message)
 
 	if type(response) == list:
 		response = "List of games: {}".format(', '.join(response))
@@ -571,7 +569,7 @@ def mafia_public_action(ack: Ack, command: dict, client: WebClient):
 
 	log.info(command)
 
-	handler_post_message(client, channel_id, text)
+	handler_post_message(client, user_id, text)
 
 game.initialize_game_state()
 

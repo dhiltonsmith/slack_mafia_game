@@ -407,7 +407,7 @@ def action_assign_player_roles(game):
 
 		while(current_faction_players < faction_players):
 			chosen_player_data = random.choice(list(game_players.items()))
-			while(chosen_player_data[1] != {'game': game}):
+			while('faction' not in chosen_player_data[1]):
 				chosen_player_data = random.choice(list(game_players.items()))
 			role_chosen = random.choice(list(faction_roles.items()))
 			chosen_player = game_players[chosen_player_data[0]]
@@ -435,18 +435,28 @@ def action_assign_player_roles(game):
 
 
 def command_available_game_commands(user_id):
-        if user_id in players_in_games:
-                return ['leave', 'list', 'role']
-        else:
-                return ['join']
+	game_commands = []
+
+	if user_id in players_in_games:
+		game_commands = ['leave']
+		if 'round' in running_games[players_in_games[user_id]['game']]:
+			game_commands.append('list')
+			game_commands.append('role')
+	else:
+		game_commands.append(['join'])
+
+	return game_commands
 
 def command_available_private_actions(user_id):
 	private_actions = []
 
 	if user_id in players_in_games:
-		role_details = get_role_details(players_in_games[user_id]['role_name'])
-		if 'private_actions' in role_details:
-			private_actions = role_details['private_actions']
+		if 'role_name' in players_in_games[user_id]:
+			role_details = get_role_details(players_in_games[user_id]['role_name'])
+			if 'private_actions' in role_details:
+				private_actions = role_details['private_actions']
+		elif 'faction_type' in players_in_games[user_id]:
+			private_actions.append('choose')
 
 	return private_actions
 
@@ -455,11 +465,12 @@ def command_available_public_actions(user_id):
 
 	if user_id in players_in_games:
 		public_actions = []
-		role_details = get_role_details(players_in_games[user_id]['role_name'])
+		if 'role_name' in players_in_games[user_id]:
+			role_details = get_role_details(players_in_games[user_id]['role_name'])
 
-		if 'public_actions' in role_details:
-			for public_action in role_details['public_actions']:
-				public_actions.append(public_action)
+			if 'public_actions' in role_details:
+				for public_action in role_details['public_actions']:
+					public_actions.append(public_action)
 
 		if 'jurors' in running_games[players_in_games[user_id]['game']] and len(running_games[players_in_games[user_id]['game']]['jurors']) < 3:
 			public_actions.append('juror')
@@ -490,17 +501,20 @@ def command_channels_for_game(game):
 
 	return town_channel, faction_channels, graveyard_channel
 
-def command_game_join(user_id, game):
+def command_game_join(meta_data, game):
+	user_id = meta_data['user_id']
+
 	if user_id in players_in_games:
-		return "{} is already in a game.".format(user_id)
+		return "You are already in a game.".format(user_id)
 	else:
 		if game in running_games:
 			players_in_games[user_id] = {}
 			players_in_games[user_id]['game'] = game
+			players_in_games[user_id]['user_name'] = meta_data['user_name']
 
 			if 'players' not in running_games[game]:
 				running_games[game]['players'] = {}
-			running_games[game]['players'][user_id] = {}
+			running_games[game]['players'][user_id] = players_in_games[user_id]['game']
 
 			store_game_state(running_games[game], "open")
 			return "You are joining {}.".format(game)
@@ -515,12 +529,15 @@ def command_game_join(user_id, game):
 
 def command_game_start(game):
 	if game in running_games:
-		running_games[game]['round'] = 1
-		running_games[game]['jurors'] = []
-		action_assign_player_roles(game)
+		if 'round' not in running_games[game]:
+			running_games[game]['round'] = 1
+			running_games[game]['jurors'] = []
+			action_assign_player_roles(game)
 
-		store_game_state(running_games[game], "open")
-		return "*Starting game {}.*".format(game)
+			store_game_state(running_games[game], "open")
+			return "*Starting game {}.*".format(game)
+		else:
+			return "*Game {} is already running.*".format(game)
 	else:
 		return list(running_games.keys())
 
