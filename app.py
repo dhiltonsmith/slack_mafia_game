@@ -23,16 +23,20 @@ global faction_counter
 faction_counter = 1
 
 def handler_post_message(client, channel, text):
-	client.chat_postMessage(
-		channel=channel,
-		text=text
-	)
+	try:
+		client.chat_postMessage(
+			channel=channel,
+			text=text
+		)
+	except errors.SlackApiError:
+		log.error("Cannot send message to channel {}.".format(channel))
 
 def handler_invite_channel(client, channel_id, users):
-	try:
-		client.conversations_invite(channel=channel_id, users=users)
-	except:
-		log.error("Users already in channel.")
+	for user in users:
+		try:
+			client.conversations_invite(channel=channel_id, users=user)
+		except errors.SlackApiError:
+			log.warn("User {} already in channel {}.".format(user, channel_id))
 
 def handler_create_channel(client, channel_name, private):
 	try:
@@ -43,7 +47,7 @@ def handler_create_channel(client, channel_name, private):
 
 		channel_id = response["channel"]["id"]
 	except errors.SlackApiError:
-		log.error("Channel already exists.")
+		log.warn("Channel {} already exists.".format(channel_name))
 		response = client.conversations_list()
 		while response["response_metadata"]["next_cursor"]:
 			for channel in response["channels"]:
@@ -53,7 +57,6 @@ def handler_create_channel(client, channel_name, private):
 		response = client.conversations_list(types="private_channel")
 		while response["response_metadata"]["next_cursor"]:
 			for channel in response["channels"]:
-				pp.pprint(channel)
 				if channel['name'] == channel_name:
 					channel_id = channel['id']
 			response = client.conversations_list(cursor = response["response_metadata"]["next_cursor"], types="public_channel, private_channel")
@@ -68,11 +71,14 @@ def add_users_to_channels(client, message):
 	town_channel = game.get_channel_id(message, "town")
 
 	players = game.get_players(message)
-
 	handler_invite_channel(client, town_channel, players)
 
-	medium_players = game.get_players_with_role(message, "medium")
+	factions = game.get_factions_with_channels(message)
 
+	for faction in factions:
+		handler_invite_channel(client, faction['channel_id'], faction['players'])
+
+	medium_players = game.get_players_with_role(message, "medium")
 	if len(medium_players) > 0:
 		graveyard_channel = game.get_channel_id(message, "graveyard")
 		handler_invite_channel(client, graveyard_channel, medium_players)
@@ -99,8 +105,9 @@ def create_channels(client, message):
 
 def initial_messages(client, message):
 	for player in game.running_games[message]['players']:
-		player_message = game.command_intro_message(message, player)
-		handler_post_message(client, player, player_message)
+		if game.running_games[message]['players'][player]['faction_type'] not in ['mafia', 'vampire_coven']:
+			player_message = game.command_intro_message(message, player)
+			handler_post_message(client, player, player_message)
 
 #Stub unless this ends up being needed later.
 @app.event("message")

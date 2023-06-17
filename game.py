@@ -1,6 +1,8 @@
 import log
+
 import pprint
 import json
+import math
 import os
 import random
 
@@ -286,6 +288,16 @@ def get_all_roles():
 
 	return role_list
 
+def get_specific_roles(field, values):
+	role_list = {}
+	all_roles = get_all_roles()
+	for role in all_roles:
+		for value in values:
+			if all_roles[role][field].lower().replace(" ", "_") == value.lower().replace(" ", "_"):
+				role_list[role] = all_roles[role]
+
+	return role_list
+
 def get_all_role_categories():
 	role_categories = []
 	for faction in game_roles.keys():
@@ -314,10 +326,18 @@ def get_players_with_role(game, role):
 	role_players = []
 	players = get_players(game)
 	for player in players:
-		if players[player]['role_name'].lower() == role:
+		if 'role_name' in players[player] and players[player]['role_name'].lower() == role:
 			role_players.append(player)
 
 	return role_players
+
+def get_factions_with_channels(game):
+	factions = []
+	for faction_id in running_games[game]['factions']:
+		if 'channel_id' in running_games[game]['factions'][faction_id]:
+			factions.append(running_games[game]['factions'][faction_id])
+
+	return factions
 
 def get_role_details(selected_role):
 	for faction in game_roles.keys():
@@ -363,16 +383,56 @@ def store_game_state(game_data, state):
 		outfile.write(game_object)
 
 def action_assign_player_roles(game):
-	all_roles = get_all_roles()
-	for player in running_games[game]['players']:
-		role_chosen = random.choice(list(all_roles.items()))
-		role_name = role_chosen[0]
-		role_faction = role_chosen[1]['faction']
-		role_category = role_chosen[1]['category']
-		running_games[game]['players'][player]['role_name'] = role_name
-		running_games[game]['players'][player]['role_faction'] = role_faction
-		running_games[game]['players'][player]['role_category'] = role_category
-		players_in_games[player] = running_games[game]['players'][player]
+	game_players = running_games[game]['players']
+	game_factions = running_games[game]['factions']
+	default_roles = get_specific_roles('category', running_games[game]['default_roles'])
+	total_players = len(game_players)
+	unaccounted_players = total_players
+	for faction_id in game_factions:
+		faction = game_factions[faction_id]
+
+		if 'players' not in faction:
+			faction['players'] = []
+		current_faction_players = len(faction['players'])
+
+		unaccounted_players -= current_faction_players
+
+		if faction['size_type'] == "fixed":
+			faction_players = faction['size']
+		else:
+			faction_players = math.floor(total_players*faction['size']/100)
+		if faction_players > unaccounted_players:
+			faction_players = unaccounted_players
+		faction_roles = get_specific_roles('faction', [faction['type']])
+
+		while(current_faction_players < faction_players):
+			chosen_player_data = random.choice(list(game_players.items()))
+			while(chosen_player_data[1] != {'game': game}):
+				chosen_player_data = random.choice(list(game_players.items()))
+			role_chosen = random.choice(list(faction_roles.items()))
+			chosen_player = game_players[chosen_player_data[0]]
+			if faction['type'] != "mafia":
+				chosen_player['role_name'] = role_chosen[0]
+				chosen_player['role_faction'] = role_chosen[1]['faction']
+				chosen_player['role_category'] = role_chosen[1]['category']
+			chosen_player['faction'] = faction['name']
+			chosen_player['faction_type'] = faction['type']
+			players_in_games[chosen_player_data[0]] = chosen_player
+			current_faction_players += 1
+			if 'players' not in faction:
+				faction['players'] = []
+			faction['players'].append(chosen_player_data[0])
+
+			unaccounted_players -= 1
+	for player in game_players:
+		if game_players[player] == {'game': game}:
+			current_player = game_players[player]
+			role_chosen = random.choice(list(default_roles.items()))
+			current_player['role_name'] = role_chosen[0]
+			current_player['role_faction'] = role_chosen[1]['faction']
+			current_player['role_category'] = role_chosen[1]['category']
+			players_in_games[player] = current_player
+
 
 def command_available_game_commands(user_id):
         if user_id in players_in_games:
