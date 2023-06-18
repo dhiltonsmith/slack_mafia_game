@@ -208,6 +208,11 @@ admin_users = ['U01HB0HCL5T', 'U03NUHNPBUK']
 def admin_actions(command, message, client, meta_data):
 	return "actions"
 
+def admin_assign_users(command, message, client, meta_data):
+	pp.pprint(message)
+
+	return "assign users"
+
 def admin_initialize(command, message, client, meta_data):
 	global faction_counter
 	faction_counter = 1
@@ -277,6 +282,10 @@ admin_commands = {
 	'actions': {
 		'function': admin_actions,
 		'help_text': "Actions taken in a game."
+	},
+	'assign_users': {
+		'function': admin_assign_users,
+		'help_text': "Assign users to a game."
 	},
 	'initialize': {
 		'function': admin_initialize,

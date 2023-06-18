@@ -565,9 +565,10 @@ def command_game_join(meta_data, game):
 				response = "{} is joining {}.".format(meta_data['user_name'], game)
 			running_games[game]['players'][user_id] = players_in_games[user_id]
 
-			action_assign_player_roles(game)
-
 			response_channel = running_games[game]['town_channel_id']
+
+			if 'round' in running_games[game]:
+				action_assign_player_roles(game)
 
 			store_game_state(running_games[game], "open")
 		else:
