@@ -290,6 +290,7 @@ def get_all_roles():
 
 def get_specific_roles(field, values):
 	role_list = {}
+	# TO DO: Add logic for excluding unique roles once selected in a game.
 	all_roles = get_all_roles()
 	for role in all_roles:
 		for value in values:
@@ -318,11 +319,32 @@ def get_channel_id(game, channel):
 
 	return ""
 
+def get_faction_current_players(faction):
+	if 'players' in faction:
+		return len(faction['players'])
+	else:
+		return 0
+
+def get_faction_min_players(total_players, faction):
+	if faction['size_type'] == "fixed":
+		return faction['size']
+	else:
+		return math.floor(total_players*faction['size']/100)
+
 def get_min_players(game):
 	if 'min_players' in running_games[game]:
 		return running_games[game]['min_players']
 	else:
 		return 0
+
+def get_non_faction_players(game_players):
+	non_faction_players = []
+
+	for player in game_players:
+		if 'faction' not in player and 'role_name' not in player:
+			non_faction_players.append(player)
+
+	return non_faction_players
 
 def get_players(game):
 	if 'players' in running_games[game]:
@@ -397,56 +419,56 @@ def store_game_state(game_data, state):
 		outfile.write(game_object)
 
 def action_assign_player_roles(game):
-	game_players = running_games[game]['players']
+	game_players = get_players(game)
 	game_factions = running_games[game]['factions']
-	default_roles = get_specific_roles('category', running_games[game]['default_roles'])
-	total_players = len(game_players)
-	unaccounted_players = total_players
+
 	for faction_id in game_factions:
-		faction = game_factions[faction_id]
+		non_faction_players = get_non_faction_players(game_players)
+		total_available_players = len(non_faction_players)
+		if total_available_players > 0:
+			faction = game_factions[faction_id]
 
-		if 'players' not in faction:
-			faction['players'] = []
-		current_faction_players = len(faction['players'])
-
-		unaccounted_players -= current_faction_players
-
-		if faction['size_type'] == "fixed":
-			faction_players = faction['size']
-		else:
-			faction_players = math.floor(total_players*faction['size']/100)
-		if faction_players > unaccounted_players:
-			faction_players = unaccounted_players
-		faction_roles = get_specific_roles('faction', [faction['type']])
-
-		while(current_faction_players < faction_players):
-			chosen_player_data = random.choice(list(game_players.items()))
-			while('faction' not in chosen_player_data[1]):
-				chosen_player_data = random.choice(list(game_players.items()))
-			role_chosen = random.choice(list(faction_roles.items()))
-			chosen_player = game_players[chosen_player_data[0]]
-			if faction['type'] != "mafia":
-				chosen_player['role_name'] = role_chosen[0]
-				chosen_player['role_faction'] = role_chosen[1]['faction']
-				chosen_player['role_category'] = role_chosen[1]['category']
-			chosen_player['faction'] = faction['name']
-			chosen_player['faction_type'] = faction['type']
-			players_in_games[chosen_player_data[0]] = chosen_player
-			current_faction_players += 1
 			if 'players' not in faction:
 				faction['players'] = []
-			faction['players'].append(chosen_player_data[0])
 
-			unaccounted_players -= 1
-	for player in game_players:
-		if game_players[player] == {'game': game}:
-			current_player = game_players[player]
+			faction_min_players = get_faction_min_players(len(game_players), faction)
+			faction_current_players = get_faction_current_players(faction)
+
+			faction_player_requirement = faction_min_players - faction_current_players
+
+			if faction_player_requirement > total_available_players:
+				faction_player_requirement = total_available_players
+
+			# TO DO: Add logic for unique roles.
+			faction_available_roles = get_specific_roles('faction', [faction['type']])
+
+			while(faction_player_requirement > 0):
+				chosen_player_id = random.choice(list(non_faction_players))
+				chosen_player = game_players[chosen_player_id]
+
+				if faction['type'] != "mafia":
+					role_chosen = random.choice(list(faction_available_roles.items()))
+					chosen_player['role_name'] = role_chosen[0]
+					chosen_player['role_faction'] = role_chosen[1]['faction']
+					chosen_player['role_category'] = role_chosen[1]['category']
+				chosen_player['faction'] = faction['name']
+				chosen_player['faction_type'] = faction['type']
+				players_in_games[chosen_player_id] = chosen_player
+
+				faction['players'].append(chosen_player_id)
+
+				non_faction_players = get_non_faction_players(game_players)
+				faction_player_requirement -= 1
+
+	if len(non_faction_players) > 0:
+		default_roles = get_specific_roles('category', running_games[game]['default_roles'])
+		for player_id in non_faction_players:
+			player = running_games[game]['players'][player_id]
 			role_chosen = random.choice(list(default_roles.items()))
-			current_player['role_name'] = role_chosen[0]
-			current_player['role_faction'] = role_chosen[1]['faction']
-			current_player['role_category'] = role_chosen[1]['category']
-			players_in_games[player] = current_player
-
+			player['role_name'] = role_chosen[0]
+			player['role_faction'] = role_chosen[1]['faction']
+			player['role_category'] = role_chosen[1]['category']
+			players_in_games[player_id] = player 
 
 def command_available_game_commands(user_id):
 	game_commands = []
@@ -523,7 +545,8 @@ def command_game_join(meta_data, game):
 	user_id = meta_data['user_id']
 
 	if user_id in players_in_games:
-		return "You are already in a game.".format(user_id)
+		response = "You are already in a game.".format(user_id)
+		response_channel = user_id
 	else:
 		if game in running_games:
 			if 'left_game' in running_games[game] and user_id in running_games[game]['left_game']:
@@ -542,11 +565,11 @@ def command_game_join(meta_data, game):
 				response = "{} is joining {}.".format(meta_data['user_name'], game)
 			running_games[game]['players'][user_id] = players_in_games[user_id]
 
+			action_assign_player_roles(game)
+
 			response_channel = running_games[game]['town_channel_id']
 
 			store_game_state(running_games[game], "open")
-
-			return response_channel, response
 		else:
 			running_games_output = []
 			for game in running_games.keys():
@@ -555,7 +578,10 @@ def command_game_join(meta_data, game):
 				else:
 					running_games_output.append("{} (Status: Not Started, Min Players: {}, Current Players: {})".format(game, get_min_players(game), len(get_players(game))))
 
-			return user_id, running_games_output
+			response = running_games_output
+			response_channel = user_id
+
+	return response_channel, response
 
 def command_game_leave(meta_data):
 	response = "{} has left the game...".format(meta_data['user_name'])

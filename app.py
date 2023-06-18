@@ -32,6 +32,7 @@ def handler_post_message(client, channel, text):
 		log.error("Cannot send message to channel {}.".format(channel))
 
 def handler_invite_channel(client, channel_id, users):
+	# TO DO: Add logic to remove any users already in channel.
 	for user in users:
 		try:
 			client.conversations_invite(channel=channel_id, users=user)
@@ -62,8 +63,6 @@ def handler_create_channel(client, channel_name, private):
 			response = client.conversations_list(cursor = response["response_metadata"]["next_cursor"], types="public_channel, private_channel")
 
 	handler_invite_channel(client, channel_id, admin_users)
-
-	handler_post_message(client, channel_id, "Hello")
 
 	return channel_id
 
@@ -109,7 +108,7 @@ def create_channels(client, message):
 
 def initial_messages(client, message):
 	for player in game.running_games[message]['players']:
-		if game.running_games[message]['players'][player]['faction_type'] not in ['mafia', 'vampire_coven']:
+		if 'faction_types' not in game.running_games[message]['players'][player] or game.running_games[message]['players'][player]['faction_type'] not in ['mafia', 'vampire_coven']:
 			player_message = game.command_intro_message(message, player)
 			handler_post_message(client, player, player_message)
 
@@ -303,7 +302,7 @@ def game_join (command, message, client, meta_data):
 	if type(response) == list:
 		response = "*List of games*: {}".format(', '.join(response))
 	else:
-		handler_invite_channel(client, town_channel_id, [meta_data['user_id']])
+		add_users_to_channels(client, message)
 		handler_post_message(client, town_channel_id, response)
 
 	return response
@@ -527,8 +526,6 @@ def mafia_game(ack: Ack, command: dict, client: WebClient):
 
 	player_game_commands = game.command_available_game_commands(user_id)
 	adjusted_game_commands = {}
-
-	pp.pprint(player_game_commands)
 
 	for selected_command in player_game_commands:
 		adjusted_game_commands[selected_command] = game_commands[selected_command]
