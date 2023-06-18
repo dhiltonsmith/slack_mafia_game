@@ -276,23 +276,23 @@ def admin_state (command, message, client, meta_data):
 admin_commands = {
 	'actions': {
 		'function': admin_actions,
-		'help_text': "Actions taken in the game."
+		'help_text': "Actions taken in a game."
 	},
 	'initialize': {
 		'function': admin_initialize,
-		'help_text': "Initialize the game."
+		'help_text': "Initialize a game."
 	},
 	'outputs': {
 		'function': admin_outputs,
-		'help_text': "Outputs in the game."
+		'help_text': "Outputs in a game."
 	},
 	'start': {
 		'function': admin_start,
-		'help_text': "Start the game."
+		'help_text': "Start a game."
 	},
 	'state': {
 		'function': admin_state,
-		'help_text': "State for the game."
+		'help_text': "State for a game."
 	}
 }
 

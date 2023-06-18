@@ -314,7 +314,7 @@ def get_channel_id(game, channel):
 		return current_game['graveyard_channel_id']
 	else:
 		for faction_id in current_game['factions'].keys():
-			if current_game['factions'][faction_id]['name'] == channel:
+			if current_game['factions'][faction_id]['name'] == channel and 'channel_id' in current_game['factions'][faction_id]:
 				return current_game['factions'][faction_id]['channel_id']
 
 	return ""
