@@ -68,10 +68,10 @@ def handler_create_channel(client, channel_name, private):
 	return channel_id
 
 def add_users_to_channels(client, message):
-	town_channel = game.get_channel_id(message, "town")
+	town_channel_id = game.get_channel_id(message, "town")
 
 	players = game.get_players(message)
-	handler_invite_channel(client, town_channel, players)
+	handler_invite_channel(client, town_channel_id, players)
 
 	factions = game.get_factions_with_channels(message)
 
@@ -80,14 +80,13 @@ def add_users_to_channels(client, message):
 
 	medium_players = game.get_players_with_role(message, "medium")
 	if len(medium_players) > 0:
-		graveyard_channel = game.get_channel_id(message, "graveyard")
-		handler_invite_channel(client, graveyard_channel, medium_players)
+		graveyard_channel_id = game.get_channel_id(message, "graveyard")
+		handler_invite_channel(client, graveyard_channel_id, medium_players)
 
 def create_channels(client, message):
 	town_channel, faction_channels, graveyard_channel = game.command_channels_for_game(message)
 
 	if len(town_channel) != 0:
-		print(len(town_channel))
 		town_channel_id = handler_create_channel(client, town_channel, False)
 	else:
 		town_channel_id = game.get_channel_id(message, "town")
@@ -249,7 +248,7 @@ def admin_start (command, message, client, meta_data):
 	response = game.command_game_start(message)
 
 	if type(response) == list:
-		response = "List of games: {}".format(', '.join(response))
+		response = "*List of games*: {}".format(', '.join(response))
 	elif 'already running' not in response:
 		create_channels(client, message)
 		add_users_to_channels(client, message)
@@ -291,15 +290,22 @@ admin_commands = {
 }
 
 def game_join (command, message, client, meta_data):
-	response = game.command_game_join(meta_data, message)
+	town_channel_id, response = game.command_game_join(meta_data, message)
 
 	if type(response) == list:
 		response = "List of games: {}".format(', '.join(response))
 
+	else:
+		handler_post_message(client, town_channel_id, response)
+
 	return response
 
 def game_leave (command, message, client, meta_data):
-	return "leave"
+	town_channel_id, response = game.command_game_leave(meta_data)
+
+	handler_post_message(client, town_channel_id, response)
+
+	return response
 
 def game_list (command, message, client, meta_data):
 	return "list"
@@ -513,6 +519,8 @@ def mafia_game(ack: Ack, command: dict, client: WebClient):
 
 	player_game_commands = game.command_available_game_commands(user_id)
 	adjusted_game_commands = {}
+
+	pp.pprint(player_game_commands)
 
 	for selected_command in player_game_commands:
 		adjusted_game_commands[selected_command] = game_commands[selected_command]

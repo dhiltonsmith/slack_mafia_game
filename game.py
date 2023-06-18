@@ -443,7 +443,7 @@ def command_available_game_commands(user_id):
 			game_commands.append('list')
 			game_commands.append('role')
 	else:
-		game_commands.append(['join'])
+		game_commands.append('join')
 
 	return game_commands
 
@@ -508,24 +508,60 @@ def command_game_join(meta_data, game):
 		return "You are already in a game.".format(user_id)
 	else:
 		if game in running_games:
-			players_in_games[user_id] = {}
-			players_in_games[user_id]['game'] = game
-			players_in_games[user_id]['user_name'] = meta_data['user_name']
+			if user_id in running_games[game]['left_game']:
+				players_in_games[user_id] = running_games[game]['left_game'][user_id]
+				del running_games[game]['left_game'][user_id]
 
-			if 'players' not in running_games[game]:
-				running_games[game]['players'] = {}
-			running_games[game]['players'][user_id] = players_in_games[user_id]['game']
+				response = "{} is rejoining {}.".format(meta_data['user_name'], game)
+			else:
+				players_in_games[user_id] = {}
+				players_in_games[user_id]['game'] = game
+				players_in_games[user_id]['user_name'] = meta_data['user_name']
+
+				if 'players' not in running_games[game]:
+					running_games[game]['players'] = {}
+
+				response = "You are joining {}.".format(game)
+			running_games[game]['players'][user_id] = players_in_games[user_id]
+
+			response_channel = running_games[game]['town_channel_id']
 
 			store_game_state(running_games[game], "open")
-			return "You are joining {}.".format(game)
+
+			return response_channel, response
 		else:
 			running_games_output = []
 			for game in running_games.keys():
 				if 'round' in running_games[game]:
-					running_games.append("{} (In Progress)".format(game))
+					running_games_output.append("{} (Status: Round {}, Min Players: {}, Current Players: {})".format(game, running_games[game]['round'], running_games[game]['min_players'], 
+len(running_games[game]['players'])))
 				else:
-					running_games.append(game)
-			return running_games_output
+					running_games_output.append("{} (Status: Not Started, Min Players: {}, Current Players: {})".format(game, running_games[game]['min_players'], running_games[game]['min_players'], len(running_games[game]['players'])))
+			return user_id, running_games_output
+
+def command_game_leave(meta_data):
+	response = "{} has left the game...".format(meta_data['user_name'])
+
+	user_id = meta_data['user_id']
+
+	if user_id in players_in_games:
+		del players_in_games[user_id]
+	else:
+                response = "Something has gone wrong, please try again later."
+                response_channel = user_id
+	for game in running_games:
+		if user_id in running_games[game]['players']:
+			user_info = running_games[game]['players'][user_id]
+			if 'left_game' not in running_games[game]:
+				running_games[game]['left_game'] = {}
+			running_games[game]['left_game'][user_id] = user_info
+			del running_games[game]['players'][user_id]
+
+			response_channel = running_games[game]['town_channel_id']
+
+			store_game_state(running_games[game], "open")
+
+	return response_channel, response
 
 def command_game_start(game):
 	if game in running_games:
