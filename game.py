@@ -318,9 +318,17 @@ def get_channel_id(game, channel):
 
 	return ""
 
+def get_min_players(game):
+	if 'min_players' in running_games[game]:
+		return running_games[game]['min_players']
+	else:
+		return 0
+
 def get_players(game):
-	current_game = running_games[game]
-	return current_game['players']
+	if 'players' in running_games[game]:
+		return running_games[game]['players']
+	else:
+		return []
 
 def get_players_with_role(game, role):
 	role_players = []
@@ -346,6 +354,12 @@ def get_role_details(selected_role):
 				if role == selected_role:
 					return game_roles[faction][category][role]
 	return {}
+
+def get_round(game):
+	if 'round' in running_games[game]:
+		return running_games[game]['round']
+	else:
+		return 0
 
 def get_running_game_state(game):
 	if game in running_games:
@@ -480,9 +494,18 @@ def command_available_public_actions(user_id):
 
 	return public_actions
 
+def command_default_channels_for_game(game):
+	town_channel = "{}_town_square".format(game)
+	graveyard_channel = "{}_graveyard".format(game)
+
+	if 'town_channel_id' in running_games[game]:
+		town_channel = ""
+	if 'graveyard_channel_id' in running_games[game]:
+		graveyard_channel = ""
+
+	return town_channel, graveyard_channel
+
 def command_channels_for_game(game):
-	town_channel = "{}-town-square".format(game)
-	graveyard_channel = "{}-graveyard".format(game)
 	faction_channels = []
 	for faction_id in running_games[game]['factions'].keys():
 		faction_type = running_games[game]['factions'][faction_id]["type"]
@@ -490,16 +513,11 @@ def command_channels_for_game(game):
 
 		if 'channel_id' not in running_games[game]['factions'][faction_id]:
 			if faction_type == 'vampire_coven':
-				faction_channels.append({'channel_name': "{}-{}-vampire-coven".format(game, faction_name), 'faction_id': faction_id})
+				faction_channels.append({'channel_name': "{}_{}_vampire_coven".format(game, faction_name), 'faction_id': faction_id})
 			if faction_type == 'mafia':
-				faction_channels.append({'channel_name': "{}-{}-family-mafia".format(game, faction_name), 'faction_id': faction_id})
+				faction_channels.append({'channel_name': "{}_{}_family_mafia".format(game, faction_name), 'faction_id': faction_id})
 
-	if 'town_channel_id' in running_games[game]:
-		town_channel = ""
-	if 'graveyard_channel_id' in running_games[game]:
-		graveyard_channel = ""
-
-	return town_channel, faction_channels, graveyard_channel
+	return faction_channels
 
 def command_game_join(meta_data, game):
 	user_id = meta_data['user_id']
@@ -508,7 +526,7 @@ def command_game_join(meta_data, game):
 		return "You are already in a game.".format(user_id)
 	else:
 		if game in running_games:
-			if user_id in running_games[game]['left_game']:
+			if 'left_game' in running_games[game] and user_id in running_games[game]['left_game']:
 				players_in_games[user_id] = running_games[game]['left_game'][user_id]
 				del running_games[game]['left_game'][user_id]
 
@@ -521,7 +539,7 @@ def command_game_join(meta_data, game):
 				if 'players' not in running_games[game]:
 					running_games[game]['players'] = {}
 
-				response = "You are joining {}.".format(game)
+				response = "{} is joining {}.".format(meta_data['user_name'], game)
 			running_games[game]['players'][user_id] = players_in_games[user_id]
 
 			response_channel = running_games[game]['town_channel_id']
@@ -533,10 +551,10 @@ def command_game_join(meta_data, game):
 			running_games_output = []
 			for game in running_games.keys():
 				if 'round' in running_games[game]:
-					running_games_output.append("{} (Status: Round {}, Min Players: {}, Current Players: {})".format(game, running_games[game]['round'], running_games[game]['min_players'], 
-len(running_games[game]['players'])))
+					running_games_output.append("{} (Status: Round {}, Min Players: {}, Current Players: {})".format(game, get_round(game), get_min_players(game), len(get_players(game))))
 				else:
-					running_games_output.append("{} (Status: Not Started, Min Players: {}, Current Players: {})".format(game, running_games[game]['min_players'], running_games[game]['min_players'], len(running_games[game]['players'])))
+					running_games_output.append("{} (Status: Not Started, Min Players: {}, Current Players: {})".format(game, get_min_players(game), len(get_players(game))))
+
 			return user_id, running_games_output
 
 def command_game_leave(meta_data):
@@ -550,7 +568,7 @@ def command_game_leave(meta_data):
                 response = "Something has gone wrong, please try again later."
                 response_channel = user_id
 	for game in running_games:
-		if user_id in running_games[game]['players']:
+		if 'players' in running_games[game] and user_id in running_games[game]['players']:
 			user_info = running_games[game]['players'][user_id]
 			if 'left_game' not in running_games[game]:
 				running_games[game]['left_game'] = {}
@@ -577,11 +595,16 @@ def command_game_start(game):
 	else:
 		return list(running_games.keys())
 
-def command_store_channel_information(game, town_channel_id, faction_channels, graveyard_channel_id):
+def command_store_default_channel_information(game, town_channel_id, graveyard_channel_id):
 	running_games[game]['town_channel_id'] = town_channel_id
 	running_games[game]['graveyard_channel_id'] = graveyard_channel_id
+
+	store_game_state(running_games[game], "open")
+
+def command_store_channel_information(game, faction_channels):
 	for faction_channel in faction_channels:
 		running_games[game]['factions'][faction_channel['faction_id']]['channel_id'] = faction_channel['channel_id']
+
 	store_game_state(running_games[game], "open")
 
 def command_initialize(game_data):

@@ -83,24 +83,29 @@ def add_users_to_channels(client, message):
 		graveyard_channel_id = game.get_channel_id(message, "graveyard")
 		handler_invite_channel(client, graveyard_channel_id, medium_players)
 
-def create_channels(client, message):
-	town_channel, faction_channels, graveyard_channel = game.command_channels_for_game(message)
+def create_default_channels(client, message):
+	town_channel, graveyard_channel = game.command_default_channels_for_game(message)
 
 	if len(town_channel) != 0:
 		town_channel_id = handler_create_channel(client, town_channel, False)
 	else:
 		town_channel_id = game.get_channel_id(message, "town")
 
-	for faction_channel in faction_channels:
-		faction_channel_id = handler_create_channel(client, faction_channel['channel_name'], True)
-		faction_channel['channel_id'] = faction_channel_id
-
 	if len(graveyard_channel) != 0:
 		graveyard_channel_id = handler_create_channel(client, graveyard_channel, True)
 	else:
 		graveyard_channel_id = game.get_channel_id(message, "graveyard")
 
-	game.command_store_channel_information(message, town_channel_id, faction_channels, graveyard_channel_id)
+	game.command_store_default_channel_information(message, town_channel_id, graveyard_channel_id)
+
+def create_channels(client, message):
+	faction_channels = game.command_channels_for_game(message)
+
+	for faction_channel in faction_channels:
+		faction_channel_id = handler_create_channel(client, faction_channel['channel_name'], True)
+		faction_channel['channel_id'] = faction_channel_id
+
+	game.command_store_channel_information(message, faction_channels)
 
 def initial_messages(client, message):
 	for player in game.running_games[message]['players']:
@@ -114,7 +119,7 @@ def handle_message_events(body, logger):
     logger.info(body)
 
 @app.view("initialize_game")
-def handle_initialize_game(ack, body):
+def handle_initialize_game(ack, body, client):
 	ack()
 	log.info(body)
 
@@ -151,6 +156,8 @@ def handle_initialize_game(ack, body):
 					game_data['factions'][faction_id]['type'] = game_options_raw[game_option_id][game_option]['selected_option']['value']
 
 	game.command_initialize(game_data)
+
+	create_default_channels(client, game_data['town_name_abbreviated'])
 
 @app.action("add_faction")
 def handle_add_faction(ack, body, client):
@@ -239,7 +246,8 @@ def admin_initialize(command, message, client, meta_data):
 			"blocks": view_blocks,
 		}
 	)
-	return "Game Initialized"
+
+	return "Game Initializing..."
 
 def admin_outputs (command, message, client, meta_data):
 	return "outputs"
@@ -293,9 +301,9 @@ def game_join (command, message, client, meta_data):
 	town_channel_id, response = game.command_game_join(meta_data, message)
 
 	if type(response) == list:
-		response = "List of games: {}".format(', '.join(response))
-
+		response = "*List of games*: {}".format(', '.join(response))
 	else:
+		handler_invite_channel(client, town_channel_id, [meta_data['user_id']])
 		handler_post_message(client, town_channel_id, response)
 
 	return response
