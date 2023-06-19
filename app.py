@@ -18,9 +18,25 @@ pp = pprint.PrettyPrinter(indent=4)
 
 app = App(token=SLACK_BOT_TOKEN)  # initializes your app with your bot token and socket mode handler
 
-
-global faction_counter
+global faction_counter, slack_user_list
+slack_user_list = []
 faction_counter = 1
+
+def handler_get_users(user_list, client, attempt = 0):
+	global slack_user_list
+
+	result_list = []
+	for user in user_list:
+		user_fixed = user.replace('@', '')
+		for slack_user in slack_user_list:
+			if user_fixed == slack_user['name']:
+				result_list.append(slack_user)
+
+	if attempt == 0 and len(result_list) < len(user_list):
+		slack_user_list = client.users_list()['members']
+		return handler_get_users(user_list, client, 1)
+
+	return result_list
 
 def handler_post_message(client, channel, text):
 	try:
@@ -32,10 +48,12 @@ def handler_post_message(client, channel, text):
 		log.error("Cannot send message to channel {}.".format(channel))
 
 def handler_invite_channel(client, channel_id, users):
-	# TO DO: Add logic to remove any users already in channel.
+	channel_users = client.conversations_members(channel=channel_id)
+
 	for user in users:
 		try:
-			client.conversations_invite(channel=channel_id, users=user)
+			if user not in channel_users['members']:
+				client.conversations_invite(channel=channel_id, users=user)
 		except errors.SlackApiError:
 			log.warn("User {} already in channel {}.".format(user, channel_id))
 
@@ -209,9 +227,40 @@ def admin_actions(command, message, client, meta_data):
 	return "actions"
 
 def admin_assign_users(command, message, client, meta_data):
-	pp.pprint(message)
+	# TEST CODE
+	# message = "feature_tests @derek @rena.bishop @demetris.marnerides @jimmy @michael.norris @andrea @sriraman.subbaraman @alex.guzman @akshay @ben.hodde @vatasha.white"
 
-	return "assign users"
+	message_split = message.split(' ', 1)
+
+	if len(message_split) < 2:
+		return "*Include a game and users for this function.*"
+
+	game_id = message_split[0]
+	user_input_list = message_split[1].split(' ')
+
+	slack_users = handler_get_users(user_input_list, client)
+
+	for user in slack_users:
+		user['user_id'] = user['id']
+		user['user_name'] = user['name']
+
+		town_channel_id, response = game.command_game_join(user, game_id)
+
+		if type(response) == list:
+			response = "*List of games*: {}".format(', '.join(response))
+		else:
+			if town_channel_id != user['user_id']:
+				handler_post_message(client, town_channel_id, response)
+			handler_post_message(client, user['user_id'], response)
+
+	add_users_to_channels(client, game_id)
+
+	if type(response) == list:
+		response = "*List of games*: {}".format(', '.join(response))
+	else:
+		response = "*Added {} to {}.*".format(' '.join(user_input_list), game_id)
+
+	return response
 
 def admin_initialize(command, message, client, meta_data):
 	global faction_counter
