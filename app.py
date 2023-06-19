@@ -228,9 +228,6 @@ def admin_actions(command, message, client, meta_data):
 	return "actions"
 
 def admin_assign_users(command, message, client, meta_data):
-	# TEST CODE
-	#message = "feature_tests @derek @rena.bishop @demetris.marnerides @jimmy @michael.norris @andrea @sriraman.subbaraman @alex.guzman @akshay @ben.hodde @vatasha.white"
-
 	message_split = message.split(' ', 1)
 
 	if len(message_split) < 2:
