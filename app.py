@@ -125,10 +125,11 @@ def create_channels(client, message):
 	game.command_store_channel_information(message, faction_channels)
 
 def initial_messages(client, message):
-	for player in game.running_games[message]['players']:
-		if 'faction_types' not in game.running_games[message]['players'][player] or game.running_games[message]['players'][player]['faction_type'] not in ['mafia', 'vampire_coven']:
-			player_message = game.command_intro_message(message, player)
-			handler_post_message(client, player, player_message)
+	if 'players' in game.running_games[message]:
+		for player in game.running_games[message]['players']:
+			if 'faction_type' not in game.running_games[message]['players'][player] or game.running_games[message]['players'][player]['faction_type'] not in ['mafia', 'vampire_coven']:
+				player_message = game.command_intro_message(message, player)
+				handler_post_message(client, player, player_message)
 
 #Stub unless this ends up being needed later.
 @app.event("message")
@@ -228,7 +229,7 @@ def admin_actions(command, message, client, meta_data):
 
 def admin_assign_users(command, message, client, meta_data):
 	# TEST CODE
-	# message = "feature_tests @derek @rena.bishop @demetris.marnerides @jimmy @michael.norris @andrea @sriraman.subbaraman @alex.guzman @akshay @ben.hodde @vatasha.white"
+	#message = "feature_tests @derek @rena.bishop @demetris.marnerides @jimmy @michael.norris @andrea @sriraman.subbaraman @alex.guzman @akshay @ben.hodde @vatasha.white"
 
 	message_split = message.split(' ', 1)
 

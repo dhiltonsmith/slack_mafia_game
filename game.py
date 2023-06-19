@@ -341,7 +341,7 @@ def get_non_faction_players(game_players):
 	non_faction_players = []
 
 	for player in game_players:
-		if 'faction' not in player and 'role_name' not in player:
+		if 'faction' not in game_players[player] and 'role_name' not in game_players[player]:
 			non_faction_players.append(player)
 
 	return non_faction_players
@@ -460,6 +460,13 @@ def action_assign_player_roles(game):
 				non_faction_players = get_non_faction_players(game_players)
 				faction_player_requirement -= 1
 
+	keep_factions = {}
+	for faction_id in game_factions:
+		faction = game_factions[faction_id]
+		if 'players' in faction and len(faction['players']) > 0:
+			keep_factions[faction_id] = faction
+
+	running_games[game]['factions'] = keep_factions
 	if len(non_faction_players) > 0:
 		default_roles = get_specific_roles('category', running_games[game]['default_roles'])
 		for player_id in non_faction_players:
@@ -533,7 +540,7 @@ def command_channels_for_game(game):
 		faction_type = running_games[game]['factions'][faction_id]["type"]
 		faction_name = running_games[game]['factions'][faction_id]["name"].lower().replace(" ", "_")
 
-		if 'channel_id' not in running_games[game]['factions'][faction_id]:
+		if 'players' in running_games[game]['factions'][faction_id] and len(running_games[game]['factions'][faction_id]['players']) > 0 and 'channel_id' not in running_games[game]['factions'][faction_id]:
 			if faction_type == 'vampire_coven':
 				faction_channels.append({'channel_name': "{}_{}_vampire_coven".format(game, faction_name), 'faction_id': faction_id})
 			if faction_type == 'mafia':
@@ -610,15 +617,18 @@ def command_game_leave(meta_data):
 
 def command_game_start(game):
 	if game in running_games:
-		if 'round' not in running_games[game]:
-			running_games[game]['round'] = 1
-			running_games[game]['jurors'] = []
-			action_assign_player_roles(game)
+		if 'players' in running_games[game] and len(running_games[game]['players']) >= running_games[game]['min_players']:
+			if 'round' not in running_games[game]:
+				running_games[game]['round'] = 1
+				running_games[game]['jurors'] = []
+				action_assign_player_roles(game)
 
-			store_game_state(running_games[game], "open")
-			return "*Starting game {}.*".format(game)
+				store_game_state(running_games[game], "open")
+				return "*Starting game {}.*".format(game)
+			else:
+				return "*Game {} is already running.*".format(game)
 		else:
-			return "*Game {} is already running.*".format(game)
+			return "*Game {} has not met minimum player requirement.*".format(game)
 	else:
 		return list(running_games.keys())
 
