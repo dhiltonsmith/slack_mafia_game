@@ -513,17 +513,38 @@ private_action_commands = {
 # TO DO: REMOVE THIS!
 def public_action_default(command, message, client, meta_data):
 	return "default"
+
+def public_action_vote(command, message, client, meta_data):
+	voted_user_id = message
+
+	slack_users = handler_get_users([voted_user_id], client)
+
+	for voted_user in slack_users:
+		voted_user['user_id'] = voted_user['id']
+		voted_user['user_name'] = voted_user['name']
         
+		town_channel_id, response = game.command_game_vote(meta_data, voted_user)
+
+		pp.pprint(response)
+
+		if type(response) == list:
+			response = "*List of eligable jurors*: {}".format(', '.join(response))
+		else:
+			if town_channel_id != meta_data['user_id']:
+				handler_post_message(client, town_channel_id, response)
+
+	return response
+
 public_action_commands = {
 	'hang': {
 		'function': public_action_default,
 		'help_text': "Hang a player."
 	},
-	'juror': {
-		'function': public_action_default,
+	'vote': {
+		'function': public_action_vote,
 		'help_text': "Vote for a juror."
 	},
-	'reval': {
+	'reveal': {
 		'function': public_action_default,
 		'help_text': "Reveal your identity to the town."
 	}

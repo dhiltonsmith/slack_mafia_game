@@ -296,6 +296,12 @@ def get_all_roles():
 
 	return role_list
 
+def get_player_alive_status(player_id):
+	if 'status' in players_in_games[player_id] and players_in_games[player_id]['status'] == 'alive':
+		return True
+	else:
+		return False
+
 def get_role(input_role):
 	role_value = {}
 
@@ -498,6 +504,7 @@ def action_assign_player_roles(game):
 					role_info['role_faction'] = role_chosen[1]['faction']['role_category'] = role_chosen[1]['category']
 				role_info['faction'] = faction['name']
 				role_info['faction_type'] = faction['type']
+				chosen_player['status'] = 'alive'
 				assign_role_to_player(role_info, chosen_player)
 
 				players_in_games[chosen_player_id] = chosen_player
@@ -523,6 +530,7 @@ def action_assign_player_roles(game):
 			role_info['role_name'] = role_chosen[0]
 			role_info['role_faction'] = role_chosen[1]['faction']
 			role_info['role_category'] = role_chosen[1]['category']
+			player['status'] = 'alive'
 			assign_role_to_player(role_info, player)
 
 			players_in_games[player_id] = player 
@@ -530,6 +538,18 @@ def action_assign_player_roles(game):
 def assign_role_to_player(role_info, player):
 	for value in role_info:
 		player[value] = role_info[value]
+
+def collect_vote(user, voted_user, game_name):
+	game_round = command_initialize_round(game_name)
+
+	if voted_user['user_id'] not in game_round['day']['vote']:
+		game_round['day']['vote'][voted_user['user_id']] = []
+
+	if user['user_id'] in game_round['day']['vote'][voted_user['user_id']] or not get_player_alive_status(voted_user['user_id']):
+		return False
+	else:
+		game_round['day']['vote'][voted_user['user_id']].append(user['user_id'])
+		return True
 
 def command_action_choose_role(user, role_selection):
 	user_id = user['user_id']
@@ -554,6 +574,7 @@ def command_action_choose_role(user, role_selection):
 		role_info['role_name'] = available_roles[role_selection]['role']
 		role_info['role_faction'] = available_roles[role_selection]['faction']
 		role_info['role_category'] = available_roles[role_selection]['category']
+		player['status'] = 'alive'
 		assign_role_to_player(role_info, player)
 
 		players_in_games[user_id] = player
@@ -601,7 +622,7 @@ def command_available_public_actions(user_id):
 					public_actions.append(public_action)
 
 		if 'jurors' in running_games[players_in_games[user_id]['game']] and len(running_games[players_in_games[user_id]['game']]['jurors']) < 3:
-			public_actions.append('juror')
+			public_actions.append('vote')
 
 		if 'jurors' in running_games[players_in_games[user_id]['game']] and user_id in running_games[players_in_games[user_id]['game']]['jurors']:
 			public_actions.append('hang')
@@ -676,6 +697,47 @@ def command_game_join(meta_data, game):
 
 	return response_channel, response
 
+def command_game_vote(user, voted_user):
+	user_id = user['user_id']
+	user_name = user['user_name']
+
+	game = players_in_games[user_id]['game']
+
+	response_channel = user_id
+
+	game_players = running_games[game]['players']
+	game_players_human_readable = {}
+	vote_cast = False
+
+	for player in game_players:
+		if get_player_alive_status(player) and player not in running_games[game]['jurors']:
+			game_players_human_readable[game_players[player]['user_name']] = True
+			if voted_user['user_id'] == player:
+				if collect_vote(user, voted_user, game):
+					vote_cast = True
+					round_info = running_games[game]['round_data'][str(running_games[game]['round'])]
+					round_day_info = round_info['day']
+					current_votes = len(round_day_info['vote'][voted_user['user_id']])
+					total_votes_needed = round_info['required_vote']
+					if current_votes - total_votes_needed == 0:
+						running_games[game]['jurors'][voted_user['user_id']] = {'until_round': running_games[game]['round']+2}
+						if len(running_games[game]['jurors']) == 3:
+							response = "*{} has voted for {}*. {} has been elected juror with {} votes! All juror spots have been filled, jurors please deliberate and cast your votes on who to hang.\n\n To case a vote on who to hang, you can use the command:\n /mafia_public_action hang player".format(user_name, voted_user['user_name'], voted_user['user_name'], current_votes)
+						response = "*{} has voted for {}*. {} has been elected juror with {} votes!  There are {} remaining juror roles to fill.".format(user_name, voted_user['user_name'], voted_user['user_name'], current_votes, 3-len(running_games[game]['jurors']))
+					else:
+						response = "*{} has voted for {}* as juror, {} more votes needed to be elected.\n\n  To vote for {} as juror, you can use the command:\n/mafia_public_action vote {}".format(user_name, voted_user['user_name'], total_votes_needed-current_votes, voted_user['user_name'], voted_user['user_name'])
+					response_channel = running_games[game]['town_channel_id']
+
+					store_game_state(running_games[game], "open")
+				else:
+					vote_cast = True
+					response = "You have already voted for {} today.".format(voted_user['user_name'])
+
+	if not vote_cast:
+		response = list(game_players_human_readable.keys())
+
+	return response_channel, response
+
 def command_game_leave(meta_data):
 	response = "{} has left the game...".format(meta_data['user_name'])
 
@@ -705,7 +767,8 @@ def command_game_start(game):
 		if 'players' in running_games[game] and len(running_games[game]['players']) >= running_games[game]['min_players']:
 			if 'round' not in running_games[game]:
 				running_games[game]['round'] = 1
-				running_games[game]['jurors'] = []
+				running_games[game]['jurors'] = {}
+				command_initialize_round(game)
 				action_assign_player_roles(game)
 
 				store_game_state(running_games[game], "open")
@@ -751,6 +814,38 @@ def command_initialize(game_data):
 			log.debug("Setting faction {} size to {}".format(game_data['factions'][faction_id]['name'], MIN_FACTION_SIZE))
 
 	upload_game_state(game_data)
+
+def command_initialize_round(game_name):
+	game = running_games[game_name]
+
+	round = "0"
+	if 'round' in game:
+		round = str(game['round'])
+
+	if 'round_data' not in game:
+		game['round_data'] = {}
+
+	if round not in game['round_data']:
+		game['round_data'][round] = {}
+
+	if 'required_vote' not in game['round_data'][round]:
+		if round - 1 not in game['round_data']:
+			total_votes = len(game['players'])
+		else:
+			total_votes = game['round_data'][round-1]['actions_take']
+
+		game['round_data'][round]['required_vote'] = math.floor(total_votes/2) + 1
+
+	if 'night' not in game['round_data][round]:
+		game['round_data]['round]['night'] = {}
+
+	if 'day' not in game['round_data'][round]:
+		game['round_data'][round]['day'] = {}
+
+	if 'vote' not in game['round_data'][round]['day']:
+		game['round_data'][round]['day']['vote'] = {}
+
+	return game['round_data'][round]
 
 def command_intro_message(game, player):
 	role = running_games[game]['players'][player]['role_name']
