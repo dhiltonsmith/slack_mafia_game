@@ -314,6 +314,18 @@ def get_role(input_role):
 						role_value['unique'] = game_roles[faction][category][role]['unique']
 					return role_value
 
+def get_role_reveal(player):
+	result = "The"
+
+	if 'faction' in player:
+		result = "{} {}".format(result, player['faction'])
+	if 'role_name' in player:
+		result = "{} {}".format(result, player['role_name'])
+
+	result = "{}.".format(result)
+
+	return result
+
 def get_specific_roles(field, values, players=[], required_roles=[]):
 	role_list = {}
 
@@ -539,16 +551,16 @@ def assign_role_to_player(role_info, player):
 	for value in role_info:
 		player[value] = role_info[value]
 
-def collect_vote(user, voted_user, game_name):
+def collect_vote(user, voted_user, game_name, type='vote'):
 	game_round = command_initialize_round(game_name)
 
-	if voted_user['user_id'] not in game_round['day']['vote']:
-		game_round['day']['vote'][voted_user['user_id']] = []
+	if voted_user['user_id'] not in game_round['day'][type]:
+		game_round['day'][type][voted_user['user_id']] = []
 
-	if user['user_id'] in game_round['day']['vote'][voted_user['user_id']] or not get_player_alive_status(voted_user['user_id']):
+	if user['user_id'] in game_round['day'][type][voted_user['user_id']] or not get_player_alive_status(voted_user['user_id']):
 		return False
 	else:
-		game_round['day']['vote'][voted_user['user_id']].append(user['user_id'])
+		game_round['day'][type][voted_user['user_id']].append(user['user_id'])
 		return True
 
 def command_action_choose_role(user, role_selection):
@@ -653,6 +665,48 @@ def command_channels_for_game(game):
 				faction_channels.append({'channel_name': "{}_{}_family_mafia".format(game, faction_name), 'faction_id': faction_id})
 
 	return faction_channels
+
+def command_game_hang(user, hanging_user):
+	user_id = user['user_id']
+	user_name = user['user_name']
+
+	game = players_in_games[user_id]['game']
+
+	response_channel = user_id
+
+	game_players = running_games[game]['players']
+	game_players_human_readable = {}
+	hanging_vote_cast = False
+
+	for player in game_players:
+		if get_player_alive_status(player):
+			game_players_human_readable[game_players[player]['user_name']] = True
+			if hanging_user['user_id'] == player:
+				if collect_vote(user, hanging_user, game, type="hang_vote"):
+					hanging_vote_cast = True
+					round_info = running_games[game]['round_data'][str(running_games[game]['round'])]
+					round_day_info = round_info['day']
+					current_votes = len(round_day_info['hang_vote'][hanging_user['user_id']])
+					total_votes_needed = len(running_games[game]['jurors'])
+					if current_votes >= total_votes_needed:
+						round_info['day']['hanging'][hanging_user['user_id']] = game_players[player]
+						game_players[player]['status'] = "dead"
+						players_in_games[player] = game_players[player]
+						response = "{} has voted to hang {}.  {} by judgement of the town, you will be hung by the neck. {} was {}".format(user_name, hanging_user['user_name'], 
+hanging_user['user_name'], hanging_user['user_name'], get_role_reveal(game_players[player]))
+					else:
+						response = "{} has voted to hang {}.  {} more votes needed to hang {}.\n\n  To vote for as player to be hung, you can use the command:\n/mafia_public_action hang {}".format(user_name, hanging_user['user_name'], total_votes_needed - current_votes, hanging_user['user_name'], hanging_user['user_name'])
+					response_channel = running_games[game]['town_channel_id']
+
+					store_game_state(running_games[game], "open")
+				else:
+					hanging_vote_cast = True
+					response = "You have already voted to hang {} today.".format(hanging_user['user_name'])
+
+	if not hanging_vote_cast:
+		response = list(game_players_human_readable.keys())
+
+	return response_channel, response
 
 def command_game_join(meta_data, game):
 	user_id = meta_data['user_id']
@@ -845,6 +899,12 @@ def command_initialize_round(game_name):
 
 	if 'vote' not in game['round_data'][round]['day']:
 		game['round_data'][round]['day']['vote'] = {}
+
+	if 'hang_vote' not in game['round_data'][round]['day']:
+		game['round_data'][round]['day']['hang_vote'] = {}
+
+	if 'hanging' not in game['round_data'][round]['day']:
+		game['round_data'][round]['day']['hanging'] = {}
 
 	return game['round_data'][round]
 

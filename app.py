@@ -514,6 +514,27 @@ private_action_commands = {
 def public_action_default(command, message, client, meta_data):
 	return "default"
 
+def public_action_hang(command, message, client, meta_data):
+	hanging_user_id = message
+
+	slack_users = handler_get_users([hanging_user_id], client)
+
+	for hanging_user in slack_users:
+		hanging_user['user_id'] = hanging_user['id']
+		hanging_user['user_name'] = hanging_user['name']
+
+		town_channel_id, response = game.command_game_hang(meta_data, hanging_user)
+
+		pp.pprint(response)
+
+		if type(response) == list:
+			response = "*List of eligable players to hang*: {}".format(', '.join(response))
+		else:
+			if town_channel_id != meta_data['user_id']:
+				handler_post_message(client, town_channel_id, response)
+
+	return response
+
 def public_action_vote(command, message, client, meta_data):
 	voted_user_id = message
 
@@ -537,7 +558,7 @@ def public_action_vote(command, message, client, meta_data):
 
 public_action_commands = {
 	'hang': {
-		'function': public_action_default,
+		'function': public_action_hang,
 		'help_text': "Hang a player."
 	},
 	'vote': {
