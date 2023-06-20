@@ -636,6 +636,8 @@ def command_available_private_actions(user_id):
 def command_available_public_actions(user_id):
 	public_actions = []
 
+	game = get_game(user_id)
+
 	if user_id in players_in_games:
 		public_actions = []
 		if 'role_name' in players_in_games[user_id]:
@@ -645,10 +647,10 @@ def command_available_public_actions(user_id):
 				for public_action in role_details['public_actions']:
 					public_actions.append(public_action)
 
-		if 'jurors' in running_games[players_in_games[user_id]['game']] and len(running_games[players_in_games[user_id]['game']]['jurors']) < 3:
+		if 'jurors' in running_games[game] and len(running_games[game]['jurors']) < 3:
 			public_actions.append('vote')
 
-		if 'jurors' in running_games[players_in_games[user_id]['game']] and user_id in running_games[players_in_games[user_id]['game']]['jurors']:
+		if 'jurors' in running_games[game] and user_id in running_games[game]['jurors'] and len(running_games[game]['round_data'][str(running_games[game]['round'])]['day']['hanging']) == 0:
 			public_actions.append('hang')
 
 	return public_actions
