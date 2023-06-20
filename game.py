@@ -296,6 +296,9 @@ def get_all_roles():
 
 	return role_list
 
+def get_game(player_id):
+	return players_in_games[player_id]['game']
+
 def get_player_alive_status(player_id):
 	if 'status' in players_in_games[player_id] and players_in_games[player_id]['status'] == 'alive':
 		return True
@@ -407,6 +410,15 @@ def get_players(game):
 		return running_games[game]['players']
 	else:
 		return []
+
+def get_dead_players(game):
+	dead_players = []
+	players = get_players(game)
+	for player in players:
+		if not get_player_alive_status(player):
+			dead_players.append(player)
+
+	return dead_players
 
 def get_players_with_role(game, role):
 	role_players = []

@@ -95,10 +95,12 @@ def add_users_to_channels(client, message):
 	for faction in factions:
 		handler_invite_channel(client, faction['channel_id'], faction['players'])
 
+	graveyard_channel_id = game.get_channel_id(message, "graveyard")
 	medium_players = game.get_players_with_role(message, "medium")
-	if len(medium_players) > 0:
-		graveyard_channel_id = game.get_channel_id(message, "graveyard")
-		handler_invite_channel(client, graveyard_channel_id, medium_players)
+	handler_invite_channel(client, graveyard_channel_id, medium_players)
+
+	dead_players = game.get_dead_players(message)
+	handler_invite_channel(client, graveyard_channel_id, dead_players)
 
 def create_default_channels(client, message):
 	town_channel, graveyard_channel = game.command_default_channels_for_game(message)
@@ -532,6 +534,8 @@ def public_action_hang(command, message, client, meta_data):
 		else:
 			if town_channel_id != meta_data['user_id']:
 				handler_post_message(client, town_channel_id, response)
+				game_id = game.get_game(meta_data['user_id'])
+				add_users_to_channels(client, game_id)
 
 	return response
 
