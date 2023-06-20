@@ -719,11 +719,12 @@ def command_game_vote(user, voted_user):
 					round_day_info = round_info['day']
 					current_votes = len(round_day_info['vote'][voted_user['user_id']])
 					total_votes_needed = round_info['required_vote']
-					if current_votes - total_votes_needed == 0:
+					if current_votes >= total_votes_needed:
 						running_games[game]['jurors'][voted_user['user_id']] = {'until_round': running_games[game]['round']+2}
 						if len(running_games[game]['jurors']) == 3:
 							response = "*{} has voted for {}*. {} has been elected juror with {} votes! All juror spots have been filled, jurors please deliberate and cast your votes on who to hang.\n\n To case a vote on who to hang, you can use the command:\n /mafia_public_action hang player".format(user_name, voted_user['user_name'], voted_user['user_name'], current_votes)
-						response = "*{} has voted for {}*. {} has been elected juror with {} votes!  There are {} remaining juror roles to fill.".format(user_name, voted_user['user_name'], voted_user['user_name'], current_votes, 3-len(running_games[game]['jurors']))
+						else:
+							response = "*{} has voted for {}*. {} has been elected juror with {} votes!  There are {} remaining juror roles to fill.".format(user_name, voted_user['user_name'], voted_user['user_name'], current_votes, 3-len(running_games[game]['jurors']))
 					else:
 						response = "*{} has voted for {}* as juror, {} more votes needed to be elected.\n\n  To vote for {} as juror, you can use the command:\n/mafia_public_action vote {}".format(user_name, voted_user['user_name'], total_votes_needed-current_votes, voted_user['user_name'], voted_user['user_name'])
 					response_channel = running_games[game]['town_channel_id']
@@ -836,8 +837,8 @@ def command_initialize_round(game_name):
 
 		game['round_data'][round]['required_vote'] = math.floor(total_votes/2) + 1
 
-	if 'night' not in game['round_data][round]:
-		game['round_data]['round]['night'] = {}
+	if 'night' not in game['round_data'][round]:
+		game['round_data'][round]['night'] = {}
 
 	if 'day' not in game['round_data'][round]:
 		game['round_data'][round]['day'] = {}
