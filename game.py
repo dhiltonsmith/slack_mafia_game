@@ -119,7 +119,8 @@ who would like to see it fall.""",
 				"background": """The day you were elected was the same day that the city fell to shambles.  You had always suspected that your opponent had ties to the Mafia but you never 
 imagined how deep those ties went until they lost the popular vote.  In order to stay safe you had to change your identity and hide out, hoping that the Mafia and the former mayor would leave you alone, but 
 knowing that it was just a matter of time before you were found.""",
-				"public_actions": ["reveal"]
+				"public_actions": ["reveal"],
+				"unique": True
 			},
 			"Medium": {
 				"background": """A gravedigger, one night you thought you heard voices coming from one of the freshly filled grave’s in the graveyard.  Over time you have come to accept and 
@@ -150,12 +151,13 @@ within the city.  They do their best to stay under the radar in order to avoid r
 			"Ambusher": {
 				"background": """An eager young member of the mafia looking to prove their worth to the Godfather, they are still a little sloppy often leaving behind evidence of their crimes.  
 They hope to someday be promoted into the role of Mafioso in order to better server the Mafia.""",
-				"private_actions": ["ambusher"]
+				"private_actions": ["ambush"]
 			},
 			"Mafioso": {
 				"background": """The second in command within the Mafia, hand picked by the current Godfather to someday take over the Mafia themselves.  They want nothing else but to prove 
 their worth and step into the leadership role that they were chosen for.""",
-				"private_actions": ["attack"]
+				"private_actions": ["attack"],
+				"unique": True
 			}
 		},
                 "MP": {
@@ -172,12 +174,14 @@ to ensure that members of the Mafia are unrecognizable even when caught on camer
 			},
 			"Corrupt Politician": {
 				"background": """A member of the former Mayor’s cabinet who acted as a liaison between the mayor and the Godfather.  They still hold some sway within the city.""",
-				"public_actions": ["reveal"]
+				"public_actions": ["reveal"],
+				"unique": True
 			},
 			"Diplomat": {
 				"background": """A member of the Mafia dedicated to the idea that all of the families should be united under a single banner in order to better control the city.  They spend 
 their time attempting to unify the Mafia families of the city.""",
-				"private_actions": ["unite"]
+				"private_actions": ["unite"],
+				"unique": True
 			},
 			"Forger": {
 				"background": """A coroner within the police department who is being paid off by the Godfather to modify the bodies of Mafia victims in order to prevent them from being properly 
@@ -188,7 +192,8 @@ identified.""",
 				"background": """A childhood friend of the former Mayor, the Godfather became upset when they lost the election and vowed to make the new Mayor regret running for office.  
 Targeting businesses and civilians alike, the Godfather has used the Mafia to plunge the city into chaos and anarchy, establishing a kangaroo court in the town square and re-introducing public hangings as a 
 means of punishing those who oppose him.""",
-				"private_actions": ["attack", "promote"]
+				"private_actions": ["attack", "promote"],
+				"unique": True
 			}
 		},
         }, "Vampire Coven": {
@@ -276,7 +281,8 @@ have broken last night.""",
 				"private_actions": ["attack"]
 			}
 		}
-	} }
+	}
+}
 
 def get_all_roles():
 	role_list = {}
@@ -284,18 +290,50 @@ def get_all_roles():
 	for faction in game_roles.keys():
 		for category in game_roles[faction].keys():
 			for role in game_roles[faction][category].keys():
-				role_list[role] = {'faction': faction, 'category': category}
+				role_list[role] = {'faction': faction, 'category': category, 'role': role}
+				if 'unique' in game_roles[faction][category][role]:
+					role_list[role]['unique'] = game_roles[faction][category][role]['unique']
 
 	return role_list
 
-def get_specific_roles(field, values):
+def get_role(input_role):
+	role_value = {}
+
+	for faction in game_roles.keys():
+		for category in game_roles[faction].keys():
+			for role in game_roles[faction][category].keys():
+				if role == input_role:
+					role_value = {'faction': faction, 'category': category, 'role': role}
+					if 'unique' in game_roles[faction][category][role]:
+						role_value['unique'] = game_roles[faction][category][role]['unique']
+					return role_value
+
+def get_specific_roles(field, values, players=[], required_roles=[]):
 	role_list = {}
-	# TO DO: Add logic for excluding unique roles once selected in a game.
+
+	current_roles = []
+	unassigned_players_count = len(players)
+	for player in players:
+		player_roles = get_player_roles(player)
+		for current_role in get_player_roles(player):
+			role = get_role(current_role['role_name'])
+			for value in values:
+				if role[field].lower().replace(" ", "_") == value.lower().replace(" ", "_"):
+					current_roles.append(current_role['role_name'])
+					unassigned_players_count -= 1
+
+	for role in required_roles:
+		if role not in current_roles:
+			role_list[role] = get_role(role)
+			if len(role_list) >= unassigned_players_count:
+				return role_list
+
 	all_roles = get_all_roles()
 	for role in all_roles:
-		for value in values:
-			if all_roles[role][field].lower().replace(" ", "_") == value.lower().replace(" ", "_"):
-				role_list[role] = all_roles[role]
+		if 'unique' not in all_roles[role] or role not in current_roles:
+			for value in values:
+				if all_roles[role][field].lower().replace(" ", "_") == value.lower().replace(" ", "_"):
+					role_list[role] = all_roles[role]
 
 	return role_list
 
@@ -360,6 +398,13 @@ def get_players_with_role(game, role):
 			role_players.append(player)
 
 	return role_players
+
+# TO DO: Change to using 'role' once that is made an array.
+def get_player_roles(player_id):
+	result_roles = []
+	if 'role_name' in players_in_games[player_id]:
+		result_roles.append(players_in_games[player_id])
+	return result_roles
 
 def get_factions_with_channels(game):
 	factions = []
@@ -443,16 +488,18 @@ def action_assign_player_roles(game):
 			faction_available_roles = get_specific_roles('faction', [faction['type']])
 
 			while(faction_player_requirement > 0):
+				role_info = {}
 				chosen_player_id = random.choice(list(non_faction_players))
 				chosen_player = game_players[chosen_player_id]
 
 				if faction['type'] != "mafia":
 					role_chosen = random.choice(list(faction_available_roles.items()))
-					chosen_player['role_name'] = role_chosen[0]
-					chosen_player['role_faction'] = role_chosen[1]['faction']
-					chosen_player['role_category'] = role_chosen[1]['category']
-				chosen_player['faction'] = faction['name']
-				chosen_player['faction_type'] = faction['type']
+					role_info['role_name'] = role_chosen[0]
+					role_info['role_faction'] = role_chosen[1]['faction']['role_category'] = role_chosen[1]['category']
+				role_info['faction'] = faction['name']
+				role_info['faction_type'] = faction['type']
+				assign_role_to_player(role_info, chosen_player)
+
 				players_in_games[chosen_player_id] = chosen_player
 
 				faction['players'].append(chosen_player_id)
@@ -470,12 +517,50 @@ def action_assign_player_roles(game):
 	if len(non_faction_players) > 0:
 		default_roles = get_specific_roles('category', running_games[game]['default_roles'])
 		for player_id in non_faction_players:
+			role_info = {}
 			player = running_games[game]['players'][player_id]
 			role_chosen = random.choice(list(default_roles.items()))
-			player['role_name'] = role_chosen[0]
-			player['role_faction'] = role_chosen[1]['faction']
-			player['role_category'] = role_chosen[1]['category']
+			role_info['role_name'] = role_chosen[0]
+			role_info['role_faction'] = role_chosen[1]['faction']
+			role_info['role_category'] = role_chosen[1]['category']
+			assign_role_to_player(role_info, player)
+
 			players_in_games[player_id] = player 
+
+def assign_role_to_player(role_info, player):
+	for value in role_info:
+		player[value] = role_info[value]
+
+def command_action_choose_role(user, role_selection):
+	user_id = user['user_id']
+	user_name = user['user_name']
+
+	game = players_in_games[user_id]['game']
+
+	available_roles = {}
+
+	for faction_id in running_games[game]['factions']:
+		faction = running_games[game]['factions'][faction_id]
+		if 'players' in faction and user_id in faction['players']:
+			if faction['type'] == 'mafia' and len(available_roles) == 0:
+				available_roles = get_specific_roles('faction', [faction['type']], players=faction['players'], required_roles=['Godfather', 'Mafioso'])
+
+	if role_selection not in available_roles:
+		return list(available_roles.keys())
+	else:
+		player = running_games[players_in_games[user_id]['game']]['players'][user_id]
+
+		role_info = {}
+		role_info['role_name'] = available_roles[role_selection]['role']
+		role_info['role_faction'] = available_roles[role_selection]['faction']
+		role_info['role_category'] = available_roles[role_selection]['category']
+		assign_role_to_player(role_info, player)
+
+		players_in_games[user_id] = player
+
+		store_game_state(running_games[game], "open")
+
+		return "{} has chosen the {}!".format(user_name, role_selection)
 
 def command_available_game_commands(user_id):
 	game_commands = []

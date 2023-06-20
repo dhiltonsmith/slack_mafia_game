@@ -399,6 +399,14 @@ game_commands = {
 def private_action_default(command, message, client, meta_data):
 	return "default"
 
+def private_action_choose(command, message, client, meta_data):
+	response = game.command_action_choose_role(meta_data, message)
+
+	if type(response) == list:
+		response = "*List of available roles*: {}".format(', '.join(response))
+
+	return response
+
 private_action_commands = {
 	'action': {
 		'function': private_action_default,
@@ -429,7 +437,7 @@ private_action_commands = {
 		'help_text': "Enhance the attack and defense of a player and get information about them."
 	},
 	'choose': {
-		'function': private_action_default,
+		'function': private_action_choose,
 		'help_text': "Choose a role within the faction."
 	},
 	'convert': {
