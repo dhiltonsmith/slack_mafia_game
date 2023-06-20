@@ -485,7 +485,7 @@ def action_assign_player_roles(game):
 				faction_player_requirement = total_available_players
 
 			# TO DO: Add logic for unique roles.
-			faction_available_roles = get_specific_roles('faction', [faction['type']])
+			faction_available_roles = get_specific_roles('faction', [faction['type']], players=game_players)
 
 			while(faction_player_requirement > 0):
 				role_info = {}
@@ -515,7 +515,7 @@ def action_assign_player_roles(game):
 
 	running_games[game]['factions'] = keep_factions
 	if len(non_faction_players) > 0:
-		default_roles = get_specific_roles('category', running_games[game]['default_roles'])
+		default_roles = get_specific_roles('category', running_games[game]['default_roles'], players=game_players)
 		for player_id in non_faction_players:
 			role_info = {}
 			player = running_games[game]['players'][player_id]
