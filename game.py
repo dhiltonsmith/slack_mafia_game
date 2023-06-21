@@ -532,7 +532,8 @@ def action_assign_player_roles(game):
 				if faction['type'] != "mafia":
 					role_chosen = random.choice(list(faction_available_roles.items()))
 					role_info['role_name'] = role_chosen[0]
-					role_info['role_faction'] = role_chosen[1]['faction']['role_category'] = role_chosen[1]['category']
+					role_info['role_faction'] = role_chosen[1]['faction']
+					role_info['role_category'] = role_chosen[1]['category']
 				role_info['faction'] = faction['name']
 				role_info['faction_type'] = faction['type']
 				chosen_player['status'] = 'alive'

@@ -129,7 +129,8 @@ def create_channels(client, message):
 def initial_messages(client, message):
 	if 'players' in game.running_games[message]:
 		for player in game.running_games[message]['players']:
-			if 'faction_type' not in game.running_games[message]['players'][player] or game.running_games[message]['players'][player]['faction_type'] not in ['mafia', 'vampire_coven']:
+			player_data = game.running_games[message]['players'][player]
+			if 'faction_type' not in player_data or player_data['faction_type'] not in ['mafia', 'vampire_coven']:
 				player_message = game.command_intro_message(message, player)
 				handler_post_message(client, player, player_message)
 
@@ -251,6 +252,10 @@ def admin_assign_users(command, message, client, meta_data):
 		else:
 			if town_channel_id != user['user_id']:
 				handler_post_message(client, town_channel_id, response)
+				user_data = game.running_games[game_id]['players'][user['user_id']]
+				if 'faction_type' not in user_data or user_data['faction_type'] not in ['mafia', 'vampire_coven']:
+					user_message = game.command_intro_message(game_id, user['user_id'])
+					handler_post_message(client, user['user_id'], user_message)
 			handler_post_message(client, user['user_id'], response)
 
 	add_users_to_channels(client, game_id)
@@ -362,6 +367,10 @@ def game_join (command, message, client, meta_data):
 	else:
 		add_users_to_channels(client, message)
 		handler_post_message(client, town_channel_id, response)
+		player_data = game.running_games[message]['players'][meta_data['user_id']]
+		if 'faction_type' not in player_data or player_data['faction_type'] not in ['mafia', 'vampire_coven']:
+			player_message = game.command_intro_message(message, meta_data['user_id'])
+			handler_post_message(client, user['user_id'], player_message)
 
 	return response
 
