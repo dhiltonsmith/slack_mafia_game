@@ -792,7 +792,7 @@ def command_game_alert(user, death_note):
 
 	return response
 
-def command_game_ambush(user, target_name, death_note):
+def command_game_attack(user, target_name, death_note, type = "attack"):
 	response = ""
 
 	player_id = user['user_id']
@@ -808,10 +808,10 @@ def command_game_ambush(user, target_name, death_note):
 		if target_name.replace('@', '') == target['user_name']:
 			if player_id in round_night_info['actions']:
 				del round_night_info['actions'][player_id]
-				response = "{} has decided not to ambush a user.".format(user['user_name'])
+				response = "{} has decided not to {} a user.".format(user['user_name'], type)
 			else:
-				round_night_info['actions'][player_id] = {"type": "ambush", "value": living_player, "death_note": death_note}
-				response = "{} has decided to ambush visitors to {}.".format(user['user_name'], target['user_name'])
+				round_night_info['actions'][player_id] = {"type": type, "value": living_player, "death_note": death_note}
+				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
 				if len(death_note) > 0:
 					response = "{}  They will leave the following death note \"{}\"".format(response, death_note)
 
@@ -819,6 +819,75 @@ def command_game_ambush(user, target_name, death_note):
 
 	if len(response) == 0:
 		response = list(living_players_human_readable)
+
+	return response
+
+def command_game_basic_action(user, target_name, death_note, type = ""):
+	response = ""
+
+	player_id = user['user_id']
+	game = get_game(player_id)
+	round_night_info = command_initialize_round(game)['night']
+
+	living_players = get_living_players(game)
+	living_players_human_readable = []
+
+	for living_player in living_players:
+		target = get_player(living_player)
+		living_players_human_readable.append(target['user_name'])
+		if target_name.replace('@', '') == target['user_name']:
+			if player_id in round_night_info['actions']:
+				del round_night_info['actions'][player_id]
+				response = "{} has decided not to {} a user.".format(user['user_name'], type)
+			else:
+				round_night_info['actions'][player_id] = {"type": type, "value": living_player}
+				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
+
+			store_game_state(running_games[game], "open")
+
+	if len(response) == 0:
+		response = list(living_players_human_readable)
+
+	return response
+
+def command_game_basic_action_dead(user, target_name, type = ""):
+	response = ""
+
+	player_id = user['user_id']
+	game = get_game(player_id)
+	round_night_info = command_initialize_round(game)['night']
+
+	dead_players = get_dead_players(game)
+	dead_players_human_readable = []
+
+	for dead_player in dead_players:
+		target = get_player(dead_player)
+		dead_players_human_readable.append(target['user_name'])
+		if target_name.replace('@', '') == target['user_name']:
+			if player_id in round_night_info['actions']:
+				del round_night_info['actions'][player_id]
+				response = "{} has decided not to {} dead player.".format(user['user_name'], type)
+			else:
+				round_night_info['actions'][player_id] = {"type": type, "value": dead_player}
+				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
+
+			store_game_state(running_games[game], "open")
+
+	if len(response) == 0:
+		response = list(dead_players_human_readable)
+
+	return response
+
+def command_game_apparate(user):
+	player_id = user['user_id']
+	if player_id in round_night_info['actions']:
+		del round_night_info['actions'][player_id]
+		response = "{} has decided not to appear in town.".format(user['user_name'])
+	else:
+		round_night_info['actions'][player_id] = {"type": "apparate", "value": "apparate"}
+		response = "{} has decided to appear in town.".format(user['user_name'])
+
+	store_game_state(running_games[game], "open")
 
 	return response
 

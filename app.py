@@ -438,7 +438,42 @@ def private_action_ambush(command, message, client, meta_data):
 
 	death_note = ' '.join(message_split[1:])
 
-	response = game.command_game_ambush(meta_data, target, death_note)
+	response = game.command_game_attack(meta_data, target, death_note, type = "ambush")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_apparate(command, message, client, meta_data):
+	response = game.command_game_apparate(meta_data)
+
+	return response
+
+def private_action_attack(command, message, client, meta_data):
+	message_split = message.split(' ', 1)
+
+	target = message_split[0]
+
+	death_note = ' '.join(message_split[1:])
+
+	response = game.command_game_attack(meta_data, target, death_note)
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_become(command, message, client, meta_data):
+	response = game.command_game_basic_action_dead(meta_data, target, death_note, type = "become")
+
+	if type(response) == list:
+		response = "*List of dead players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_boost(command, message,client, meta_data):
+	response = game.command_basic_action(meta_data, message, type = "boost")
 
 	if type(response) == list:
 		response = "*List of living players*: {}".format(', '.join(response))
@@ -450,6 +485,78 @@ def private_action_choose(command, message, client, meta_data):
 
 	if type(response) == list:
 		response = "*List of available roles*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_convert(command, message, client, meta_data):
+	response = game.command_basic_action(meta_data, message, type = "convert")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_douse(command, message, client, meta_data):
+	response = game.command_basic_action(meta_data, message, type = "douse")
+
+	if type(response) == list:
+		response = "*List of living players: {}".format(', '.join(response))
+
+	return response
+
+def private_action_examine(command, message, client, meta_data):
+	response = game.command_game_basic_action_dead(meta_data, message, type = "examine")
+
+	if type(response) == list:
+		response = "*List of dead players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_investigate(command, message, client, meta_data):
+	response = game.command_game_basic_action_dead(meta_data, message, type = "investigate")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_protect(command, message, client, meta_data):
+	response = game.command_game_basic_action(meta_data, message, type = "protect")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_resurrect(command, message, client, meta_data):
+	response = game.command_game_basic_action_dead(meta_data, message, type = "resurrect")
+
+	if type(response) == list:
+		response = "*List of dead players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_role_block(command, message, client, meta_data):
+	response = game.command_game_basic_action(meta_data, message, type = "role_block")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_unite(command, message, client, meta_data):
+	response = game.command_game_basic_action(meta_data, message, type = "unite")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_watch(command, message, client, meta_data):
+	response = game.command_game_basic_action(meta_data, message, type = "watch")
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
 
 	return response
 
@@ -467,19 +574,19 @@ private_action_commands = {
 		'help_text': "Set an ambush and leave a Death Note."
 	},
 	'apparate': {
-		'function': private_action_default,
+		'function': private_action_apparate,
 		'help_text': "Appear in town and interacte as usual for a day."
 	},
 	'attack': {
-		'function': private_action_default,
+		'function': private_action_attack,
 		'help_text': "Attack a player and leave a Death Note."
 	},
 	'become': {
-		'function': private_action_default,
+		'function': private_action_become,
 		'help_text': "Change role to match a dead players."
 	},
 	'boost': {
-		'function': private_action_default,
+		'function': private_action_boost,
 		'help_text': "Enhance the attack and defense of a player and get information about them."
 	},
 	'choose': {
@@ -487,7 +594,7 @@ private_action_commands = {
 		'help_text': "Choose a role within the faction."
 	},
 	'convert': {
-		'function': private_action_default,
+		'function': private_action_convert,
 		'help_text': "Select a player to convert into your faction."
 	},
 	'disguise': {
@@ -495,7 +602,7 @@ private_action_commands = {
 		'help_text': "Change a player in your mafia to look like a role if investigated."
 	},
 	'douse': {
-		'function': private_action_default,
+		'function': private_action_douse,
 		'help_text': "Prepare a player to be ignited."
 	},
 	'event': {
@@ -503,7 +610,7 @@ private_action_commands = {
 		'help_text': "Trigger an event for the town."
 	},
 	'examine': {
-		'function': private_action_default,
+		'function': private_action_examine,
 		'help_text': "Check the role and the killers role for a dead player."
 	},
 	'forge': {
@@ -515,7 +622,7 @@ private_action_commands = {
 		'help_text': "Attack all doused players and leave a Death Note."
 	},
 	'investigate': {
-		'function': private_action_default,
+		'function': private_action_investigate,
 		'help_text': "Gain information about a player."
 	},
 	'possess': {
@@ -527,15 +634,15 @@ private_action_commands = {
 		'help_text': "Promote a player into the new Mafioso."
 	},
 	'protect': {
-		'function': private_action_default,
+		'function': private_action_protect,
 		'help_text': "Protect a player."
 	},
 	'resurrect': {
-		'function': private_action_default,
+		'function': private_action_resurrect,
 		'help_text': "Bring a player back to life."
 	},
 	'role_block': {
-		'function': private_action_default,
+		'function': private_action_role_block,
 		'help_text': "Stop the action of another player."
 	},
 	'stake': {
@@ -543,7 +650,7 @@ private_action_commands = {
 		'help_text': "Attack all identified vampires and leave a Death Note."
 	},
 	'unite': {
-		'function': private_action_default,
+		'function': private_action_unite,
 		'help_text': "Unite mafia factions."
 	},
 	'vision': {
@@ -551,7 +658,7 @@ private_action_commands = {
 		'help_text': "Receive a vision about other players in the game."
 	},
 	'watch': {
-		'function': private_action_default,
+		'function': private_action_watch,
 		'help_text': "Focus on a specific player."
 	}
 }
