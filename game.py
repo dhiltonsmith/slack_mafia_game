@@ -537,6 +537,8 @@ def action_assign_player_roles(game):
 				role_info['faction'] = faction['name']
 				role_info['faction_type'] = faction['type']
 				chosen_player['status'] = 'alive'
+				chosen_player['deaths'] = []
+				chosen_player['revealed_info'] = []
 				assign_role_to_player(role_info, chosen_player)
 
 				players_in_games[chosen_player_id] = chosen_player
@@ -563,6 +565,8 @@ def action_assign_player_roles(game):
 			role_info['role_faction'] = role_chosen[1]['faction']
 			role_info['role_category'] = role_chosen[1]['category']
 			player['status'] = 'alive'
+			player['deaths'] = []
+			player['revealed_info'] = []
 			assign_role_to_player(role_info, player)
 
 			players_in_games[player_id] = player 
@@ -610,6 +614,8 @@ def command_action_choose_role(user, role_selection):
 		role_info['role_faction'] = available_roles[role_selection]['faction']
 		role_info['role_category'] = available_roles[role_selection]['category']
 		player['status'] = 'alive'
+		player['deaths'] = []
+		player['revealed_info'] = []
 		assign_role_to_player(role_info, player)
 
 		players_in_games[user_id] = player
@@ -767,7 +773,16 @@ def command_game_hang(user, hanging_user):
 					total_votes_needed = len(running_games[game]['jurors'])
 					if current_votes >= total_votes_needed:
 						round_info['day']['hanging'][hanging_user['user_id']] = game_players[player]
-						game_players[player]['status'] = "dead"
+						game_players[player]['status'] = 'dead'
+
+						if 'deaths' not in game_players[player]:
+							game_players[player]['deaths'] = []
+						game_players[player]['deaths'].append({"round": running_games[game]['round'], "type": "hanging"})
+
+						if 'revealed_info' not in game_players[player]:
+							game_players[player]['revealed_info'] = []
+						game_players[player]['revealed_info'].append(get_role_reveal(game_players[player]))
+
 						players_in_games[player] = game_players[player]
 						response = "{} has voted to hang {}.  {} by judgement of the town, you will be hung by the neck. {} was {}".format(user_name, hanging_user['user_name'], 
 hanging_user['user_name'], hanging_user['user_name'], get_role_reveal(game_players[player]))
