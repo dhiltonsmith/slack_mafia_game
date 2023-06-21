@@ -431,6 +431,15 @@ def get_dead_players(game):
 
 	return dead_players
 
+def get_living_players(game):
+	living_players = []
+	players = get_players(game)
+	for player in players:
+		if get_player_alive_status(player):
+			living_players.append(player)
+
+	return living_players
+
 def get_players_with_role(game, role):
 	role_players = []
 	players = get_players(game)
@@ -673,8 +682,6 @@ def command_available_private_actions(user_id):
 			for action in role_actions:
 				private_actions[''].append(action)
 
-	pp.pprint(private_actions)
-
 	return private_actions
 
 def command_available_public_actions(user_id):
@@ -752,7 +759,7 @@ def command_game_action(user, vote_action):
 					else:
 						response = "{}.  The {} will prepare to perform action {} at a later date.".format(response, faction['name'], action)
 					faction['action'] = action
-					round_night_info['actions'][faction['faction_name']] = action
+					round_night_info['actions']['faction'][faction['faction_name']] = {"type": "faction_selection", "value": action}
 				else:
 					response = "{} has voted on action {}.  {} more votes needed to perform action {}.\n\n  To vote for this action, you can use the command:\n/mafia_private_action action {}".format(user_name, action, total_votes_needed - current_vote, action, action)
 				response_channel = faction['channel_id']
@@ -766,6 +773,54 @@ def command_game_action(user, vote_action):
 		response = list(actions)
 
 	return response_channel, response
+
+def command_game_alert(user, death_note):
+	player_id = user['user_id']
+	game = get_game(player_id)
+	round_night_info = command_initialize_round(game)['night']
+
+	if player_id in round_night_info['actions']:
+		del round_night_info['actions'][player_id]
+		response = "{} has decided not to go on alert.".format(user['user_name'])
+	else:
+		round_night_info['actions'][player_id] = {"type": "alert", "value": "alert", "death_note": death_note}
+		response = "{} has decided to go on alert.".format(user['user_name'])
+		if len(death_note) > 0:
+			response = "{}  They will leave the following death note \"{}\"".format(response, death_note)
+
+	store_game_state(running_games[game], "open")
+
+	return response
+
+def command_game_ambush(user, target_name, death_note):
+	response = ""
+
+	player_id = user['user_id']
+	game = get_game(player_id)
+	round_night_info = command_initialize_round(game)['night']
+
+	living_players = get_living_players(game)
+	living_players_human_readable = []
+
+	for living_player in living_players:
+		target = get_player(living_player)
+		living_players_human_readable.append(target['user_name'])
+		if target_name.replace('@', '') == target['user_name']:
+			if player_id in round_night_info['actions']:
+				del round_night_info['actions'][player_id]
+				response = "{} has decided not to ambush a user.".format(user['user_name'])
+			else:
+				round_night_info['actions'][player_id] = {"type": "ambush", "value": living_player, "death_note": death_note}
+				response = "{} has decided to ambush visitors to {}.".format(user['user_name'], target['user_name'])
+				if len(death_note) > 0:
+					response = "{}  They will leave the following death note \"{}\"".format(response, death_note)
+
+			store_game_state(running_games[game], "open")
+
+	if len(response) == 0:
+		response = list(living_players_human_readable)
+
+	return response
 
 def command_game_hang(user, hanging_user):
 	user_id = user['user_id']

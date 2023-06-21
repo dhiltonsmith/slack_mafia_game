@@ -424,6 +424,27 @@ def private_action_action(command, message, client, meta_data):
 
 	return response
 
+def private_action_alert(command, message, client, meta_data):
+	death_note = message
+
+	response = game.command_game_alert(meta_data, death_note)
+
+	return response
+
+def private_action_ambush(command, message, client, meta_data):
+	message_split = message.split(' ', 1)
+
+	target = message_split[0]
+
+	death_note = ' '.join(message_split[1:])
+
+	response = game.command_game_ambush(meta_data, target, death_note)
+
+	if type(response) == list:
+		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
 def private_action_choose(command, message, client, meta_data):
 	response = game.command_action_choose_role(meta_data, message)
 
@@ -438,11 +459,11 @@ private_action_commands = {
 		'help_text': "Vampires select an action to take."
 	},
 	'alert': {
-		'function': private_action_default,
+		'function': private_action_alert,
 		'help_text': "Go on alert to attack all visitors and leave a Death Note."
 	},
 	'ambush': {
-		'function': private_action_default,
+		'function': private_action_ambush,
 		'help_text': "Set an ambush and leave a Death Note."
 	},
 	'apparate': {
