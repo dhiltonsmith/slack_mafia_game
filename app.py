@@ -130,9 +130,10 @@ def initial_messages(client, message):
 	if 'players' in game.running_games[message]:
 		for player in game.running_games[message]['players']:
 			player_data = game.running_games[message]['players'][player]
-			if 'faction_type' not in player_data or player_data['faction_type'] not in ['mafia', 'vampire_coven']:
-				player_message = game.command_intro_message(message, player)
-				handler_post_message(client, player, player_message)
+			for role in player_data['roles']:
+				if 'faction_type' not in role or role['faction_type'] not in ['mafia', 'vampire_coven']:
+					player_message = game.command_intro_message(message, player)
+					handler_post_message(client, player, player_message)
 
 #Stub unless this ends up being needed later.
 @app.event("message")
@@ -678,8 +679,17 @@ def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 	message = command['text']
 	command_string = command['command']
 
-	player_private_commands = game.command_available_private_actions(user_id)
+	player_private_commands_data = game.command_available_private_actions(user_id)
 	adjusted_private_action_commands = {}
+
+	player_private_commands = []
+	if channel_id in player_private_commands_data:
+		message_channel_id = channel_id
+		player_private_commands = player_private_commands_data[channel_id]
+	else:
+		message_channel_id = user_id
+		player_private_commands = player_private_commands_data['']
+
 	for selected_command in player_private_commands:
 		adjusted_private_action_commands[selected_command] = private_action_commands[selected_command]
 
@@ -690,7 +700,7 @@ def mafia_private_action(ack: Ack, command: dict, client: WebClient):
 
 	log.info(command)
 
-	handler_post_message(client, user_id, text)
+	handler_post_message(client, message_channel_id, text)
 
 # The mafia_public_action command shows information about the game.
 @app.command("/mafia_public_action")

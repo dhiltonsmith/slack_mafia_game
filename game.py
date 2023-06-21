@@ -299,12 +299,15 @@ def get_all_roles():
 def get_game(player_id):
 	return players_in_games[player_id]['game']
 
-def get_faction(player_id):
+def get_faction(player_id, type):
 	for faction_id in running_games[get_game(player_id)]['factions']:
 		faction = running_games[get_game(player_id)]['factions'][faction_id]
 		if player_id in faction['players']:
 			return faction
 	return None
+
+def get_player(player_id):
+	return players_in_games[player_id]
 
 def get_player_alive_status(player_id):
 	if 'status' in players_in_games[player_id] and players_in_games[player_id]['status'] == 'alive':
@@ -403,14 +406,15 @@ def get_min_players(game):
 	else:
 		return 0
 
-def get_non_faction_players(game_players):
-	non_faction_players = []
+def get_non_assigned_players(game_players):
+	non_assigned_players = []
 
 	for player in game_players:
-		if 'faction' not in game_players[player] and 'role_name' not in game_players[player]:
-			non_faction_players.append(player)
+		player_data = game_players[player]
+		if 'roles' in player_data and len(player_data['roles']) == 0:
+			non_assigned_players.append(player)
 
-	return non_faction_players
+	return non_assigned_players
 
 def get_players(game):
 	if 'players' in running_games[game]:
@@ -492,7 +496,6 @@ def upload_game_state(game_data):
 		if 'players' in game_data:
 			for player in game_data['players']:
 				players_in_games[player] = game_data['players'][player]
-				players_in_games[player]['game'] = game_data['town_name_abbreviated']
 		store_game_state(game_data, "open")
 
 def store_game_state(game_data, state):
@@ -505,8 +508,8 @@ def action_assign_player_roles(game):
 	game_factions = running_games[game]['factions']
 
 	for faction_id in game_factions:
-		non_faction_players = get_non_faction_players(game_players)
-		total_available_players = len(non_faction_players)
+		non_assigned_players = get_non_assigned_players(game_players)
+		total_available_players = len(non_assigned_players)
 		if total_available_players > 0:
 			faction = game_factions[faction_id]
 
@@ -526,7 +529,7 @@ def action_assign_player_roles(game):
 
 			while(faction_player_requirement > 0):
 				role_info = {}
-				chosen_player_id = random.choice(list(non_faction_players))
+				chosen_player_id = random.choice(list(non_assigned_players))
 				chosen_player = game_players[chosen_player_id]
 
 				if faction['type'] != "mafia":
@@ -545,7 +548,7 @@ def action_assign_player_roles(game):
 
 				faction['players'].append(chosen_player_id)
 
-				non_faction_players = get_non_faction_players(game_players)
+				non_assigned_players = get_non_assigned_players(game_players)
 				faction_player_requirement -= 1
 
 	keep_factions = {}
@@ -555,9 +558,9 @@ def action_assign_player_roles(game):
 			keep_factions[faction_id] = faction
 
 	running_games[game]['factions'] = keep_factions
-	if len(non_faction_players) > 0:
+	if len(non_assigned_players) > 0:
 		default_roles = get_specific_roles('category', running_games[game]['default_roles'], players=game_players)
-		for player_id in non_faction_players:
+		for player_id in non_assigned_players:
 			role_info = {}
 			player = running_games[game]['players'][player_id]
 			role_chosen = random.choice(list(default_roles.items()))
@@ -572,8 +575,16 @@ def action_assign_player_roles(game):
 			players_in_games[player_id] = player 
 
 def assign_role_to_player(role_info, player):
-	for value in role_info:
-		player[value] = role_info[value]
+	updated = False
+	for role_id, role in enumerate(player['roles']):
+		if 'faction' in role and 'faction' in role_info and role['faction'] == role_info['faction']:
+			updated = True
+			player['roles'][role_id] = role_info
+
+	pp.pprint(player['roles'])
+
+	if not updated:
+		player['roles'].append(role_info)
 
 def collect_vote(user, vote, game_name, type='vote', location_override=''):
 	if len(location_override) == 0:
@@ -596,13 +607,8 @@ def command_action_choose_role(user, role_selection):
 
 	game = players_in_games[user_id]['game']
 
-	available_roles = {}
-
-	for faction_id in running_games[game]['factions']:
-		faction = running_games[game]['factions'][faction_id]
-		if 'players' in faction and user_id in faction['players']:
-			if faction['type'] == 'mafia' and len(available_roles) == 0:
-				available_roles = get_specific_roles('faction', [faction['type']], players=faction['players'], required_roles=['Godfather', 'Mafioso'])
+	faction = get_faction(user_id, 'mafia')
+	available_roles = get_specific_roles('faction', [faction['type']], players=faction['players'], required_roles=['Godfather', 'Mafioso'])
 
 	if role_selection not in available_roles:
 		return list(available_roles.keys())
@@ -613,9 +619,8 @@ def command_action_choose_role(user, role_selection):
 		role_info['role_name'] = available_roles[role_selection]['role']
 		role_info['role_faction'] = available_roles[role_selection]['faction']
 		role_info['role_category'] = available_roles[role_selection]['category']
-		player['status'] = 'alive'
-		player['deaths'] = []
-		player['revealed_info'] = []
+		role_info['faction'] = faction['name']
+		role_info['faction_type'] = faction['type']
 		assign_role_to_player(role_info, player)
 
 		players_in_games[user_id] = player
@@ -638,24 +643,40 @@ def command_available_game_commands(user_id):
 	return game_commands
 
 def command_available_private_actions(user_id):
-	private_actions = []
+	private_actions = {}
+	private_actions[''] = []
 
-	if user_id in players_in_games:
-		if 'role_name' in players_in_games[user_id]:
-			role_details = get_role_details(players_in_games[user_id]['role_name'])
+	player = get_player(user_id)
+
+	for role in player['roles']:
+		faction = {}
+		role_actions = []
+
+		if 'faction_type' in role:
+			faction = get_faction(user_id, role['faction_type'])
+		if 'role_name' in role:
+			role_details = get_role_details(role['role_name'])
 			if 'private_actions' in role_details:
-				private_actions = role_details['private_actions']
-		elif 'faction_type' in players_in_games[user_id]:
-			private_actions.append('choose')
-		if 'faction_type' in players_in_games[user_id] and players_in_games[user_id]['faction_type'] == 'vampire_coven':
-			faction = get_faction(user_id)
-			if 'action' in faction:
-				if faction['action'] == "attack":
-					private_actions.append("attack")
-				if faction['action'] == "convert" and 'charge' in faction and faction['charge'] + 1 >= len(faction['players']):
-					private_actions.append("convert")
-			else:
-				private_actions.append("action")
+				role_actions = role_details['private_actions']
+		elif 'faction_type' in role:
+			role_actions.append('choose')
+		if 'channel_id' in faction:
+			if faction['type'] == 'vampire_coven':
+				if 'action' in faction:
+					if faction['action'] == "attack":
+						role_actions.append("attack")
+					if faction['action'] == "convert" and 'charge' in faction and faction['charge'] + 1 >= len(faction['players']):
+						role_actions.append("convert")
+				else:
+					role_actions.append("action")
+			elif faction['type'] == 'mafia' and len(role_actions) == 0:
+				role_actions.append("choose")
+			private_actions[faction['channel_id']] = role_actions
+		else:
+			for action in role_actions:
+				private_actions[''].append(action)
+
+	pp.pprint(private_actions)
 
 	return private_actions
 
@@ -711,7 +732,7 @@ def command_game_action(user, vote_action):
 	user_name = user['user_name']
 
 	game = get_game(user_id)
-	faction = get_faction(user_id)
+	faction = get_faction(user_id, "vampire_coven")
 
 	response_channel = user_id
 
@@ -817,6 +838,7 @@ def command_game_join(meta_data, game):
 				players_in_games[user_id] = {}
 				players_in_games[user_id]['game'] = game
 				players_in_games[user_id]['user_name'] = meta_data['user_name']
+				players_in_games[user_id]['roles'] = []
 
 				if 'players' not in running_games[game]:
 					running_games[game]['players'] = {}
@@ -976,7 +998,7 @@ def command_initialize_round(game_name):
 		game['round_data'][round] = {}
 
 	if 'required_vote' not in game['round_data'][round]:
-		if round - 1 not in game['round_data']:
+		if int(round) - 1 not in game['round_data']:
 			total_votes = len(game['players'])
 		else:
 			total_votes = game['round_data'][round-1]['actions_take']
@@ -1012,20 +1034,26 @@ def command_initialize_round(game_name):
 	return game['round_data'][round]
 
 def command_intro_message(game, player):
-	role = running_games[game]['players'][player]['role_name']
+	response = ""
+
+	player_data = running_games[game]['players'][player]
+
+	for role_data in player_data['roles']:
+		if 'role_name' in role_data:
+			role = role_data['role_name']
 	
-	role_details = get_role_details(role)
+			role_details = get_role_details(role)
 
-	response = role_details['background']
+			background = "{}{}".format(response, role_details['background'])
 
-	response = "{}\n\nYou are the *{}*.\n\n".format(response, role)
+			response = "{}{}\n\nYou are the *{}*.\n\n".format(response, background, role)
 
-	if 'private_actions' in role_details:
-		for private_action in role_details['private_actions']:
-			response = "{}/mafia_private_action {}\n".format(response, private_action)
+			if 'private_actions' in role_details:
+				for private_action in role_details['private_actions']:
+					response = "{}/mafia_private_action {}\n".format(response, private_action)
 
-	if 'public_actions' in role_details:
-		for public_action in role_details['public_actions']:
-			response = "{}/mafia_public_action {}\n".format(response, public_action)
+			if 'public_actions' in role_details:
+				for public_action in role_details['public_actions']:
+					response = "{}/mafia_public_action {}\n".format(response, public_action)
 
 	return response
