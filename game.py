@@ -302,7 +302,7 @@ def get_game(player_id):
 def get_faction(player_id, type):
 	for faction_id in running_games[get_game(player_id)]['factions']:
 		faction = running_games[get_game(player_id)]['factions'][faction_id]
-		if player_id in faction['players']:
+		if player_id in faction['players'] and faction['type'] == type:
 			return faction
 	return None
 
@@ -581,8 +581,6 @@ def assign_role_to_player(role_info, player):
 			updated = True
 			player['roles'][role_id] = role_info
 
-	pp.pprint(player['roles'])
-
 	if not updated:
 		player['roles'].append(role_info)
 
@@ -658,8 +656,7 @@ def command_available_private_actions(user_id):
 			role_details = get_role_details(role['role_name'])
 			if 'private_actions' in role_details:
 				role_actions = role_details['private_actions']
-		elif 'faction_type' in role:
-			role_actions.append('choose')
+
 		if 'channel_id' in faction:
 			if faction['type'] == 'vampire_coven':
 				if 'action' in faction:
