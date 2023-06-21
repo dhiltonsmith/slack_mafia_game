@@ -727,7 +727,7 @@ def command_game_action(user, vote_action):
 					else:
 						response = "{}.  The {} will prepare to perform action {} at a later date.".format(response, faction['name'], action)
 					faction['action'] = action
-					f
+					round_night_info['actions'][faction['faction_name']] = action
 				else:
 					response = "{} has voted on action {}.  {} more votes needed to perform action {}.\n\n  To vote for this action, you can use the command:\n/mafia_private_action action {}".format(user_name, action, total_votes_needed - current_vote, action, action)
 				response_channel = faction['channel_id']
