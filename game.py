@@ -16,6 +16,7 @@ players_in_games = {}
 
 SAVE_PATH = "game_save"
 
+ACTIONS = ['attack', 'convert', 'standard']
 DEFAULT_ROLES = ['NI', 'NK', 'NP', 'NS', 'EI', 'ES']
 MIN_PLAYERS = 10
 ROUND_LENGTH = 24
@@ -200,7 +201,6 @@ means of punishing those who oppose him.""",
                 "VK": {
 			"Vampire": {
 				"background": """The vampire coven views the citizens of the city as a source of food and any group that takes their food from them as an enemy that needs to be eliminated.""",
-				"private_actions": ["action", "attack", "convert"]
 			}
 		}
         }, "Neutral": {
@@ -298,6 +298,13 @@ def get_all_roles():
 
 def get_game(player_id):
 	return players_in_games[player_id]['game']
+
+def get_faction(player_id):
+	for faction_id in running_games[get_game(player_id)]['factions']:
+		faction = running_games[get_game(player_id)]['factions'][faction_id]
+		if player_id in faction['players']:
+			return faction
+	return None
 
 def get_player_alive_status(player_id):
 	if 'status' in players_in_games[player_id] and players_in_games[player_id]['status'] == 'alive':
@@ -563,16 +570,19 @@ def assign_role_to_player(role_info, player):
 	for value in role_info:
 		player[value] = role_info[value]
 
-def collect_vote(user, voted_user, game_name, type='vote'):
-	game_round = command_initialize_round(game_name)
+def collect_vote(user, vote, game_name, type='vote', location_override=''):
+	if len(location_override) == 0:
+		game_round = command_initialize_round(game_name)['day']
+	else:
+		game_round = location_override
 
-	if voted_user['user_id'] not in game_round['day'][type]:
-		game_round['day'][type][voted_user['user_id']] = []
+	if vote not in game_round[type]:
+		game_round[type][vote] = []
 
-	if user['user_id'] in game_round['day'][type][voted_user['user_id']] or not get_player_alive_status(voted_user['user_id']):
+	if user in game_round[type][vote] or type != 'action' and not get_player_alive_status(vote):
 		return False
 	else:
-		game_round['day'][type][voted_user['user_id']].append(user['user_id'])
+		game_round[type][vote].append(user)
 		return True
 
 def command_action_choose_role(user, role_selection):
@@ -630,6 +640,15 @@ def command_available_private_actions(user_id):
 				private_actions = role_details['private_actions']
 		elif 'faction_type' in players_in_games[user_id]:
 			private_actions.append('choose')
+		if 'faction_type' in players_in_games[user_id] and players_in_games[user_id]['faction_type'] == 'vampire_coven':
+			faction = get_faction(user_id)
+			if 'action' in faction:
+				if faction['action'] == "attack":
+					private_actions.append("attack")
+				if faction['action'] == "convert" and 'charge' in faction and faction['charge'] + 1 >= len(faction['players']):
+					private_actions.append("convert")
+			else:
+				private_actions.append("action")
 
 	return private_actions
 
@@ -680,6 +699,49 @@ def command_channels_for_game(game):
 
 	return faction_channels
 
+def command_game_action(user, vote_action):
+	user_id = user['user_id']
+	user_name = user['user_name']
+
+	game = get_game(user_id)
+	faction = get_faction(user_id)
+
+	response_channel = user_id
+
+	actions = ACTIONS
+	vote_cast = False
+
+	round_night_info = command_initialize_round(game)['night']
+	faction_round_night_info = round_night_info[players_in_games[user_id]['faction']]
+
+	for action in actions:
+		if action == vote_action:
+			if collect_vote(user_id, action, game, type='action', location_override=faction_round_night_info):
+				vote_cast = True
+				current_vote = len(faction_round_night_info['action'][vote_action])
+				total_votes_needed = math.floor(len(faction['players'])/2) + 1
+				if current_vote >= total_votes_needed:
+					response = "{} has voted on action {}".format(user_name, action)
+					if action != "convert" or 'charge' in faction and faction['charge'] == len(faction['players']) - 1:
+						response = "{}.  The {} will perform action {} tonight.".format(response, faction['name'], action)
+					else:
+						response = "{}.  The {} will prepare to perform action {} at a later date.".format(response, faction['name'], action)
+					faction['action'] = action
+					f
+				else:
+					response = "{} has voted on action {}.  {} more votes needed to perform action {}.\n\n  To vote for this action, you can use the command:\n/mafia_private_action action {}".format(user_name, action, total_votes_needed - current_vote, action, action)
+				response_channel = faction['channel_id']
+
+				store_game_state(running_games[game], "open")
+			else:
+				vote_cast = True
+				response = "You have already voted on action {} today.".format(action)
+
+	if not vote_cast:
+		response = list(actions)
+
+	return response_channel, response
+
 def command_game_hang(user, hanging_user):
 	user_id = user['user_id']
 	user_name = user['user_name']
@@ -696,7 +758,7 @@ def command_game_hang(user, hanging_user):
 		if get_player_alive_status(player):
 			game_players_human_readable[game_players[player]['user_name']] = True
 			if hanging_user['user_id'] == player:
-				if collect_vote(user, hanging_user, game, type="hang_vote"):
+				if collect_vote(user_id, hanging_user['user_id'], game, type="hang_vote"):
 					hanging_vote_cast = True
 					round_info = running_games[game]['round_data'][str(running_games[game]['round'])]
 					round_day_info = round_info['day']
@@ -781,7 +843,7 @@ def command_game_vote(user, voted_user):
 		if get_player_alive_status(player) and player not in running_games[game]['jurors']:
 			game_players_human_readable[game_players[player]['user_name']] = True
 			if voted_user['user_id'] == player:
-				if collect_vote(user, voted_user, game):
+				if collect_vote(user_id, voted_user['user_id'], game):
 					vote_cast = True
 					round_info = running_games[game]['round_data'][str(running_games[game]['round'])]
 					round_day_info = round_info['day']
@@ -907,6 +969,17 @@ def command_initialize_round(game_name):
 
 	if 'night' not in game['round_data'][round]:
 		game['round_data'][round]['night'] = {}
+
+	for faction_id in game['factions']:
+		faction = game['factions'][faction_id]
+		if faction['type'] == 'vampire_coven':
+			if faction['name'] not in game['round_data'][round]['night']:
+				game['round_data'][round]['night'][faction['name']] = {}
+			if 'action' not in game['round_data'][round]['night'][faction['name']]:
+				game['round_data'][round]['night'][faction['name']]['action'] = {} 
+
+	if 'actions' not in game['round_data'][round]['night']:
+		game['round_data'][round]['night']['actions'] = {}
 
 	if 'day' not in game['round_data'][round]:
 		game['round_data'][round]['day'] = {}

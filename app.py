@@ -401,6 +401,19 @@ game_commands = {
 def private_action_default(command, message, client, meta_data):
 	return "default"
 
+def private_action_action(command, message, client, meta_data):
+	voted_action = message
+          
+	vampire_channel_id, response = game.command_game_action(meta_data, voted_action)
+
+	if type(response) == list:
+		response = "*List of actions*: {}".format(', '.join(response))
+	else:
+		if vampire_channel_id != meta_data['user_id']:
+			handler_post_message(client, vampire_channel_id, response)
+
+	return response
+
 def private_action_choose(command, message, client, meta_data):
 	response = game.command_action_choose_role(meta_data, message)
 
@@ -411,7 +424,7 @@ def private_action_choose(command, message, client, meta_data):
 
 private_action_commands = {
 	'action': {
-		'function': private_action_default,
+		'function': private_action_action,
 		'help_text': "Vampires select an action to take."
 	},
 	'alert': {
@@ -517,6 +530,8 @@ def public_action_default(command, message, client, meta_data):
 	return "default"
 
 def public_action_hang(command, message, client, meta_data):
+	response = "*Include a user for this function.*"
+
 	hanging_user_id = message
 
 	slack_users = handler_get_users([hanging_user_id], client)
@@ -526,8 +541,6 @@ def public_action_hang(command, message, client, meta_data):
 		hanging_user['user_name'] = hanging_user['name']
 
 		town_channel_id, response = game.command_game_hang(meta_data, hanging_user)
-
-		pp.pprint(response)
 
 		if type(response) == list:
 			response = "*List of eligable players to hang*: {}".format(', '.join(response))
@@ -540,6 +553,8 @@ def public_action_hang(command, message, client, meta_data):
 	return response
 
 def public_action_vote(command, message, client, meta_data):
+	response = "*Include a user for this function.*"
+
 	voted_user_id = message
 
 	slack_users = handler_get_users([voted_user_id], client)
@@ -549,8 +564,6 @@ def public_action_vote(command, message, client, meta_data):
 		voted_user['user_name'] = voted_user['name']
         
 		town_channel_id, response = game.command_game_vote(meta_data, voted_user)
-
-		pp.pprint(response)
 
 		if type(response) == list:
 			response = "*List of eligable jurors*: {}".format(', '.join(response))
