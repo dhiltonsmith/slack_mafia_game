@@ -300,12 +300,7 @@ def display_player(player, admin=False):
 		response = "{} ({})".format(response, player['status'])
 
 	if admin:
-		for role in player['roles']:
-			response = "{}\n\t\t*Role*:".format(response)
-			if 'role_name' in role:
-				response = "{} {}".format(response, role['role_name'])
-			if 'faction' in role:
-				response = "{} In The {}".format(response, role['faction'])
+		response = "{}{}".format(response, get_role_reveal(player))
 
 	return response
 
@@ -353,16 +348,16 @@ def get_role(input_role):
 					return role_value
 
 def get_role_reveal(player):
-	result = "The"
+	response = ""
 
-	if 'faction' in player:
-		result = "{} {}".format(result, player['faction'])
-	if 'role_name' in player:
-		result = "{} {}".format(result, player['role_name'])
+	for role in player['roles']:
+		response = "{}\n\t\t*Role*:".format(response)
+		if 'role_name' in role:
+			response = "{} {}".format(response, role['role_name'])
+		if 'faction' in role:
+			response = "{} In The {}".format(response, role['faction'])
 
-	result = "{}.".format(result)
-
-	return result
+	return response
 
 def get_specific_roles(field, values, players=[], required_roles=[]):
 	role_list = {}
@@ -993,8 +988,8 @@ def command_game_hang(user, hanging_user):
 						game_players[player]['revealed_info'].append(get_role_reveal(game_players[player]))
 
 						players_in_games[player] = game_players[player]
-						response = "{} has voted to hang {}.  {} by judgement of the town, you will be hung by the neck. {} was {}".format(user_name, hanging_user['user_name'], 
-hanging_user['user_name'], hanging_user['user_name'], get_role_reveal(game_players[player]))
+						response = "{} has voted to hang {}.  {} by judgement of the town, you will be hung by the neck{}".format(user_name, hanging_user['user_name'], 
+hanging_user['user_name'], get_role_reveal(game_players[player]))
 					else:
 						response = "{} has voted to hang {}.  {} more votes needed to hang {}.\n\n  To vote for as player to be hung, you can use the command:\n/mafia_public_action hang {}".format(user_name, hanging_user['user_name'], total_votes_needed - current_votes, hanging_user['user_name'], hanging_user['user_name'])
 					response_channel = running_games[game]['town_channel_id']
