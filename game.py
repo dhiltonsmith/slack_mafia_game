@@ -284,6 +284,31 @@ have broken last night.""",
 	}
 }
 
+def display_faction(faction, admin=False):
+	response = "{} ({})".format(faction['name'], faction['type'])
+	if admin:
+		human_readable_players = []
+		for player in faction['players']:
+			human_readable_players.append(get_player(player)['user_name'])
+		response = "{} *Players*: {}".format(response, ", ".join(human_readable_players))
+
+	return response
+
+def display_player(player, admin=False):
+	response = "{}".format(player['user_name'])
+	if 'status' in player:
+		response = "{} ({})".format(response, player['status'])
+
+	if admin:
+		for role in player['roles']:
+			response = "{}\n\t\t*Role*:".format(response)
+			if 'role_name' in role:
+				response = "{} {}".format(response, role['role_name'])
+			if 'faction' in role:
+				response = "{} In The {}".format(response, role['faction'])
+
+	return response
+
 def get_all_roles():
 	role_list = {}
 
@@ -478,11 +503,38 @@ def get_round(game):
 	else:
 		return 0
 
-def get_running_game_state(game):
-	if game in running_games:
-		return json.dumps(running_games[game], indent=4)
+def get_running_game_state(game_name):
+	response = ""
+
+	if game_name in running_games:
+		game = running_games[game_name]
+		response = "{}*Town Name*: {}\n".format(response, game['town_name'])
+		if 'round_length' in game:
+			response = "{}*Round Length*: {} hours\n".format(response, game['round_length'])
+		if 'round' in game:
+			response = "{}*Current Round*: {}\n".format(response, game['round'])
+		if 'jurors' in game:
+			response = "{}*Jurors:* {}\n".format(response, ", ".join(game['jurors'].keys()))
+
+		response = "{}*Factions:*\n".format(response)
+		for faction_id in game['factions']:
+			faction = game['factions'][faction_id]
+			response = "{}*\tFaction* - {}\n".format(response, display_faction(faction, admin=True))
+
+		response = "{}*Living Players:*\n".format(response)
+		for player_id in get_living_players(game_name):
+			player = get_player(player_id)
+			pp.pprint(player)
+			response = "{}*\tPlayer* - {}\n".format(response, display_player(player, admin=True))
+
+		response = "{}*Dead Players:*\n".format(response)
+		for player_id in get_dead_players(game_name):
+			player = get_player(player_id)
+			response = "{}*\tPlayer* - {}\n".format(response, display_player(player, admin=True))
 	else:
-		return list(running_games.keys())
+		response = list(running_games.keys())
+
+	return response
 
 def initialize_game_state():
 	dir_path = SAVE_PATH

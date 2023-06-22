@@ -327,9 +327,9 @@ def admin_state (command, message, client, meta_data):
 	response = game.get_running_game_state(message)
 
 	if type(response) == list:
-		response = "List of games: {}".format(', '.join(response))
+		response = "*List of games*: {}".format(', '.join(response))
 	else:
-		response = "Game State of {} is: {}".format(message, response)
+		response = "Game State of {} is:\n{}".format(message, response)
 
 	return response
 
