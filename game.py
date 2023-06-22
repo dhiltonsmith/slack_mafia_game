@@ -524,7 +524,6 @@ def get_running_game_state(game_name):
 		response = "{}*Living Players:*\n".format(response)
 		for player_id in get_living_players(game_name):
 			player = get_player(player_id)
-			pp.pprint(player)
 			response = "{}*\tPlayer* - {}\n".format(response, display_player(player, admin=True))
 
 		response = "{}*Dead Players:*\n".format(response)
