@@ -759,7 +759,7 @@ def command_game_action(user, vote_action):
 					else:
 						response = "{}.  The {} will prepare to perform action {} at a later date.".format(response, faction['name'], action)
 					faction['action'] = action
-					round_night_info['actions']['faction'][faction['faction_name']] = {"type": "faction_selection", "value": action}
+					round_night_info['actions']['faction'][faction['faction_name']]['action'] = {"type": "action", "value": action}
 				else:
 					response = "{} has voted on action {}.  {} more votes needed to perform action {}.\n\n  To vote for this action, you can use the command:\n/mafia_private_action action {}".format(user_name, action, total_votes_needed - current_vote, action, action)
 				response_channel = faction['channel_id']
@@ -1131,11 +1131,8 @@ def command_initialize_round(game_name):
 
 	for faction_id in game['factions']:
 		faction = game['factions'][faction_id]
-		if faction['type'] == 'vampire_coven':
-			if faction['name'] not in game['round_data'][round]['night']:
-				game['round_data'][round]['night'][faction['name']] = {}
-			if 'action' not in game['round_data'][round]['night'][faction['name']]:
-				game['round_data'][round]['night'][faction['name']]['action'] = {} 
+		if faction['name'] not in game['round_data'][round]['night']:
+			game['round_data'][round]['night'][faction['name']] = {}
 
 	if 'actions' not in game['round_data'][round]['night']:
 		game['round_data'][round]['night']['actions'] = {}
