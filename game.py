@@ -593,6 +593,22 @@ def assign_role_to_player(role_info, player):
 	if not updated:
 		player['roles'].append(role_info)
 
+def record_action(game, player_id, channel_id, action_data):
+	round_night_info = command_initialize_round(game)['night']
+	action_storage_location = round_night_info['actions']
+
+	for faction_id in running_games[game]['factions']:
+		faction = running_games[game]['factions'][faction_id]
+		if 'channel_id' in faction and channel_id == faction['channel_id']:
+			action_storage_location = round_night_info['faction'][faction['name']]
+
+	if player_id in action_storage_location:
+		del action_storage_location[player_id]
+		return False
+	else:
+		action_storage_location[player_id] = action_data
+		return True
+
 def collect_vote(user, vote, game_name, type='vote', location_override=''):
 	if len(location_override) == 0:
 		game_round = command_initialize_round(game_name)['day']
@@ -759,7 +775,7 @@ def command_game_action(user, vote_action):
 					else:
 						response = "{}.  The {} will prepare to perform action {} at a later date.".format(response, faction['name'], action)
 					faction['action'] = action
-					round_night_info['actions']['faction'][faction['faction_name']]['action'] = {"type": "action", "value": action}
+					round_night_info['faction'][faction['faction_name']]['action'] = {"type": "action", "value": action}
 				else:
 					response = "{} has voted on action {}.  {} more votes needed to perform action {}.\n\n  To vote for this action, you can use the command:\n/mafia_private_action action {}".format(user_name, action, total_votes_needed - current_vote, action, action)
 				response_channel = faction['channel_id']
@@ -775,18 +791,18 @@ def command_game_action(user, vote_action):
 	return response_channel, response
 
 def command_game_alert(user, death_note):
+	channel_id = user['channel_id']
 	player_id = user['user_id']
 	game = get_game(player_id)
-	round_night_info = command_initialize_round(game)['night']
 
-	if player_id in round_night_info['actions']:
-		del round_night_info['actions'][player_id]
+	action_data = {"type": "alert", "value": "alert", "death_note": death_note}
+
+	if not record_action(game, player_id, channel_id, action_data):
 		response = "{} has decided not to go on alert.".format(user['user_name'])
 	else:
-		round_night_info['actions'][player_id] = {"type": "alert", "value": "alert", "death_note": death_note}
 		response = "{} has decided to go on alert.".format(user['user_name'])
 		if len(death_note) > 0:
-			response = "{}  They will leave the following death note \"{}\"".format(response, death_note)
+			response = "{}  They will leave the following death note \"{}\".".format(response, death_note)
 
 	store_game_state(running_games[game], "open")
 
@@ -795,9 +811,9 @@ def command_game_alert(user, death_note):
 def command_game_attack(user, target_name, death_note, type = "attack"):
 	response = ""
 
+	channel_id = user['channel_id']
 	player_id = user['user_id']
 	game = get_game(player_id)
-	round_night_info = command_initialize_round(game)['night']
 
 	living_players = get_living_players(game)
 	living_players_human_readable = []
@@ -806,14 +822,13 @@ def command_game_attack(user, target_name, death_note, type = "attack"):
 		target = get_player(living_player)
 		living_players_human_readable.append(target['user_name'])
 		if target_name.replace('@', '') == target['user_name']:
-			if player_id in round_night_info['actions']:
-				del round_night_info['actions'][player_id]
+			action_data = {"type": "alert", "value": "alert", "death_note": death_note}
+			if not record_action(game, player_id, channel_id, action_data):
 				response = "{} has decided not to {} a user.".format(user['user_name'], type)
 			else:
-				round_night_info['actions'][player_id] = {"type": type, "value": living_player, "death_note": death_note}
 				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
 				if len(death_note) > 0:
-					response = "{}  They will leave the following death note \"{}\"".format(response, death_note)
+					response = "{}  They will leave the following death note \"{}\".".format(response, death_note)
 
 			store_game_state(running_games[game], "open")
 
@@ -825,9 +840,9 @@ def command_game_attack(user, target_name, death_note, type = "attack"):
 def command_game_basic_action(user, target_name, death_note, type = ""):
 	response = ""
 
+	channel_id = user['channel_id']
 	player_id = user['user_id']
 	game = get_game(player_id)
-	round_night_info = command_initialize_round(game)['night']
 
 	living_players = get_living_players(game)
 	living_players_human_readable = []
@@ -836,11 +851,10 @@ def command_game_basic_action(user, target_name, death_note, type = ""):
 		target = get_player(living_player)
 		living_players_human_readable.append(target['user_name'])
 		if target_name.replace('@', '') == target['user_name']:
-			if player_id in round_night_info['actions']:
-				del round_night_info['actions'][player_id]
+			action_data = {"type": type, "value": living_player}
+			if not record_action(game, player_id, channel_id, action_data):
 				response = "{} has decided not to {} a user.".format(user['user_name'], type)
 			else:
-				round_night_info['actions'][player_id] = {"type": type, "value": living_player}
 				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
 
 			store_game_state(running_games[game], "open")
@@ -853,9 +867,9 @@ def command_game_basic_action(user, target_name, death_note, type = ""):
 def command_game_basic_action_dead(user, target_name, type = ""):
 	response = ""
 
+	channel_id = user['channel_id']
 	player_id = user['user_id']
 	game = get_game(player_id)
-	round_night_info = command_initialize_round(game)['night']
 
 	dead_players = get_dead_players(game)
 	dead_players_human_readable = []
@@ -864,11 +878,10 @@ def command_game_basic_action_dead(user, target_name, type = ""):
 		target = get_player(dead_player)
 		dead_players_human_readable.append(target['user_name'])
 		if target_name.replace('@', '') == target['user_name']:
-			if player_id in round_night_info['actions']:
-				del round_night_info['actions'][player_id]
+			action_data = {"type": type, "value": dead_player}
+			if not record_action(game, player_id, channel_id, action_data):
 				response = "{} has decided not to {} dead player.".format(user['user_name'], type)
 			else:
-				round_night_info['actions'][player_id] = {"type": type, "value": dead_player}
 				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
 
 			store_game_state(running_games[game], "open")
@@ -879,12 +892,15 @@ def command_game_basic_action_dead(user, target_name, type = ""):
 	return response
 
 def command_game_apparate(user):
+	channel_id = user['channel_id']
 	player_id = user['user_id']
-	if player_id in round_night_info['actions']:
-		del round_night_info['actions'][player_id]
+	game = get_game(player_id)
+
+	action_data = {"type": "apparate", "value": "apparate"}
+
+	if not record_action(game, player_id, channel_id, action_data):
 		response = "{} has decided not to appear in town.".format(user['user_name'])
 	else:
-		round_night_info['actions'][player_id] = {"type": "apparate", "value": "apparate"}
 		response = "{} has decided to appear in town.".format(user['user_name'])
 
 	store_game_state(running_games[game], "open")
@@ -1129,10 +1145,13 @@ def command_initialize_round(game_name):
 	if 'night' not in game['round_data'][round]:
 		game['round_data'][round]['night'] = {}
 
+	if 'faction' not in game['round_data'][round]['night']:
+		game['round_data'][round]['night']['faction'] = {}
+
 	for faction_id in game['factions']:
 		faction = game['factions'][faction_id]
-		if faction['name'] not in game['round_data'][round]['night']:
-			game['round_data'][round]['night'][faction['name']] = {}
+		if faction['name'] not in game['round_data'][round]['night']['faction']:
+			game['round_data'][round]['night']['faction'][faction['name']] = {}
 
 	if 'actions' not in game['round_data'][round]['night']:
 		game['round_data'][round]['night']['actions'] = {}
