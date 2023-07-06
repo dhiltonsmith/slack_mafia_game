@@ -451,6 +451,16 @@ def get_dead_players(game):
 
 	return dead_players
 
+def get_faction_players(game, player_id, faction_type):
+	player_faction = get_faction(player_id, faction_type)
+	faction_players = []
+	players = get_players(game)
+	for player in players:
+		if player_faction == get_faction(player, faction_type):
+			faction_players.append(player)
+
+	return faction_players
+
 def get_living_players(game):
 	living_players = []
 	players = get_players(game)
@@ -648,7 +658,7 @@ def record_action(game, player_id, channel_id, action_data):
 		if 'channel_id' in faction and channel_id == faction['channel_id']:
 			action_storage_location = round_night_info['faction'][faction['name']]
 
-	if player_id in action_storage_location:
+	if player_id in action_storage_location and action_storage_location[player_id] == action_data:
 		del action_storage_location[player_id]
 		return False
 	else:
@@ -836,17 +846,17 @@ def command_game_action(user, vote_action):
 
 	return response_channel, response
 
-def command_game_alert(user, death_note):
+def command_game_attack_no_target(user, death_note, type):
 	channel_id = user['channel_id']
 	player_id = user['user_id']
 	game = get_game(player_id)
 
-	action_data = {"type": "alert", "value": "alert", "death_note": death_note}
+	action_data = {"type": type, "value": "alert", "death_note": death_note}
 
 	if not record_action(game, player_id, channel_id, action_data):
-		response = "{} has decided not to go on alert.".format(user['user_name'])
+		response = "{} has decided not to {}.".format(user['user_name'], type)
 	else:
-		response = "{} has decided to go on alert.".format(user['user_name'])
+		response = "{} has decided to {}.".format(user['user_name'], type)
 		if len(death_note) > 0:
 			response = "{}  They will leave the following death note \"{}\".".format(response, death_note)
 
@@ -883,7 +893,7 @@ def command_game_attack(user, target_name, death_note, type = "attack"):
 
 	return response
 
-def command_game_basic_action(user, target_name, death_note, type = ""):
+def command_game_basic_action(user, target_name, type = ""):
 	response = ""
 
 	channel_id = user['channel_id']
@@ -926,7 +936,7 @@ def command_game_basic_action_dead(user, target_name, type = ""):
 		if target_name.replace('@', '') == target['user_name']:
 			action_data = {"type": type, "value": dead_player}
 			if not record_action(game, player_id, channel_id, action_data):
-				response = "{} has decided not to {} dead player.".format(user['user_name'], type)
+				response = "{} has decided not to {} {}.".format(user['user_name'], type, target['user_name'])
 			else:
 				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
 
@@ -950,6 +960,95 @@ def command_game_apparate(user):
 		response = "{} has decided to appear in town.".format(user['user_name'])
 
 	store_game_state(running_games[game], "open")
+
+	return response
+
+def command_game_disguise(user, disguised_name, disguise_name):
+	response = ""
+        
+	channel_id = user['channel_id']
+	player_id = user['user_id']
+	game = get_game(player_id)
+        
+	living_players = get_living_players(game)
+	living_players_human_readable = []
+
+	faction_players = get_faction_players(game, player_id, faction_type = "mafia")
+	faction_players_human_readable = []
+
+	disguised = ""
+	disguise = ""
+
+	for living_player in living_players:
+		target = get_player(living_player)
+		living_players_human_readable.append(target['user_name'])
+		if disguise_name.replace('@', '') == target['user_name']:
+			disguise = living_player
+		if living_player in faction_players:
+			faction_players_human_readable.append(target['user_name'])
+			if disguised_name.replace('@', '') == target['user_name']:
+				disguised = living_player
+
+	if disguised == "" or disguise == "":
+		response = {
+			'living_players': living_players_human_readable,
+			'faction_players': faction_players_human_readable
+		}
+	else:
+		action_data = {"type": "disguise", "disguised": disguised, "disguise": disguise}
+
+		if not record_action(game, player_id, channel_id, action_data):
+			response = "{} has decided not to disguise {} as {}.".format(user['user_name'], disguised_name, disguise_name)
+		else:
+			response = "{} has decided to disguise {} as {}.".format(user['user_name'], disguised_name, disguise_name)
+                
+		store_game_state(running_games[game], "open")		
+
+	return response
+
+def command_game_forge(user, forged_name, forged_role_name, killer_role_name):
+	response = ""
+
+	channel_id = user['channel_id']
+	player_id = user['user_id']
+	game = get_game(player_id)
+
+	dead_players = get_dead_players(game)
+	dead_players_human_readable = []
+
+	all_roles = get_all_roles()
+	all_roles_human_readable = []
+
+	forged = ""
+	forged_role = ""
+	killer_role = ""
+
+	for dead_player in dead_players:
+		target = get_player(dead_player)
+		dead_players_human_readable.append(target['user_name'])
+		if forged_name.replace('@', '') == target['user_name']:
+			forged = dead_player
+
+	for role in all_roles:
+		all_roles_human_readable.append(role)
+		if forged_role_name.lower() == role.lower():
+			forged_role = role
+		if killer_role_name.lower() == role.lower():
+			killer_role = role
+
+	if forged == "" or forged_role == "" or killer_role == "":
+		response = {
+			'dead_players': dead_players_human_readable,
+			'roles': all_roles_human_readable
+		}
+
+	else:
+		action_data = {"type": "forge", "forged": forged, "forged_role": forged_role, "killer_role": killer_role}
+		if not record_action(game, player_id, channel_id, action_data):
+			response = "{} has decided not to forge {} as {} killed by {}.".format(user['user_name'], forged_name, forged_role, killer_role)
+		else:
+			response = "{} has decided to forge {} as {} killed by {}.".format(user['user_name'], forged_name, forged_role, killer_role)
+		store_game_state(running_games[game], "open")
 
 	return response
 
@@ -1047,6 +1146,32 @@ def command_game_join(meta_data, game):
 			response_channel = user_id
 
 	return response_channel, response
+
+def command_game_vision(user, vision_type_name):
+	response = ""
+
+	channel_id = user['channel_id']
+	player_id = user['user_id']
+	game = get_game(player_id)
+
+	vision_types = ['Good', 'Evil']
+
+	vision_type = ""
+
+	for type in vision_types:
+		if type.lower() == vision_type_name.lower():
+			vision_type = type
+
+	if vision_type == "":
+		response = vision_types
+	else:
+		action_data = {"type": "vision", "vision": vision_type}
+		if not record_action(game, player_id, channel_id, action_data):
+			response = "{} has decided not to get {} vision.".format(user['user_name'], vision_type)
+		else:
+			response = "{} has decided to get {} vision.".format(user['user_name'], vision_type)
+
+	return response	
 
 def command_game_vote(user, voted_user):
 	user_id = user['user_id']

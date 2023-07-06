@@ -427,7 +427,7 @@ def private_action_action(command, message, client, meta_data):
 def private_action_alert(command, message, client, meta_data):
 	death_note = message
 
-	response = game.command_game_alert(meta_data, death_note)
+	response = game.command_game_attack_no_target(meta_data, death_note, type = "alert")
 
 	return response
 
@@ -465,7 +465,7 @@ def private_action_attack(command, message, client, meta_data):
 	return response
 
 def private_action_become(command, message, client, meta_data):
-	response = game.command_game_basic_action_dead(meta_data, target, death_note, type = "become")
+	response = game.command_game_basic_action_dead(meta_data, target, type = "become")
 
 	if type(response) == list:
 		response = "*List of dead players*: {}".format(', '.join(response))
@@ -473,7 +473,7 @@ def private_action_become(command, message, client, meta_data):
 	return response
 
 def private_action_boost(command, message,client, meta_data):
-	response = game.command_basic_action(meta_data, message, type = "boost")
+	response = game.command_game_basic_action(meta_data, message, type = "boost")
 
 	if type(response) == list:
 		response = "*List of living players*: {}".format(', '.join(response))
@@ -496,11 +496,24 @@ def private_action_convert(command, message, client, meta_data):
 
 	return response
 
+def private_action_disguise(command, message, client, meta_data):
+	message_split = message.split(' ', 1)
+
+	disguised = message_split[0]
+	disguise = message_split[1]
+
+	response = game.command_game_disguise(meta_data, disguised, disguise)
+
+	if type(response) == dict:
+		response = "*List of faction players*: {}\n*List of living players*: {}".format(', '.join(response['faction_players']), ', '.join(response['living_players']))
+
+	return response
+
 def private_action_douse(command, message, client, meta_data):
-	response = game.command_basic_action(meta_data, message, type = "douse")
+	response = game.command_game_basic_action(meta_data, message, type = "douse")
 
 	if type(response) == list:
-		response = "*List of living players: {}".format(', '.join(response))
+		response = "*List of living players*: {}".format(', '.join(response))
 
 	return response
 
@@ -512,8 +525,29 @@ def private_action_examine(command, message, client, meta_data):
 
 	return response
 
+def private_action_forge(command, message, client, meta_data):
+	message_split = message.split(' ')
+
+	forged = message_split[0]
+	forged_role = message_split[1]
+	killer_role = message_split[2]
+
+	response = game.command_game_forge(meta_data, forged, forged_role, killer_role)
+
+	if type(response) == dict:
+		response = "*List of dead players*: {}\n*List of all roles*: {}".format(', '.join(response['dead_players']), ', '.join(response['roles']))
+
+	return response
+
+def private_action_ignite(command, message, client, meta_data):
+	death_note = message
+                
+	response = game.command_game_attack_no_target(meta_data, death_note, type = "ignite")
+
+	return response
+
 def private_action_investigate(command, message, client, meta_data):
-	response = game.command_game_basic_action_dead(meta_data, message, type = "investigate")
+	response = game.command_game_basic_action(meta_data, message, type = "investigate")
 
 	if type(response) == list:
 		response = "*List of living players*: {}".format(', '.join(response))
@@ -544,11 +578,26 @@ def private_action_role_block(command, message, client, meta_data):
 
 	return response
 
+def private_action_stake(command, message, client, meta_data):
+	death_note = message
+
+	response = game.command_game_attack_no_target(meta_data, death_note, type = "stake")
+
+	return response
+
 def private_action_unite(command, message, client, meta_data):
 	response = game.command_game_basic_action(meta_data, message, type = "unite")
 
 	if type(response) == list:
 		response = "*List of living players*: {}".format(', '.join(response))
+
+	return response
+
+def private_action_vision(command, message, client, meta_data):
+	response = game.command_game_vision(meta_data, message)
+
+	if type(response) == list:
+		response = "*List of available visions*: {}".format(', '.join(response))
 
 	return response
 
@@ -598,7 +647,7 @@ private_action_commands = {
 		'help_text': "Select a player to convert into your faction."
 	},
 	'disguise': {
-		'function': private_action_default,
+		'function': private_action_disguise,
 		'help_text': "Change a player in your mafia to look like a role if investigated."
 	},
 	'douse': {
@@ -614,11 +663,11 @@ private_action_commands = {
 		'help_text': "Check the role and the killers role for a dead player."
 	},
 	'forge': {
-		'function': private_action_default,
+		'function': private_action_forge,
 		'help_text': "Create a fake examination result for a dead player."
 	},
 	'ignite': {
-		'function': private_action_default,
+		'function': private_action_ignite,
 		'help_text': "Attack all doused players and leave a Death Note."
 	},
 	'investigate': {
@@ -646,7 +695,7 @@ private_action_commands = {
 		'help_text': "Stop the action of another player."
 	},
 	'stake': {
-		'function': private_action_default,
+		'function': private_action_stake,
 		'help_text': "Attack all identified vampires and leave a Death Note."
 	},
 	'unite': {
@@ -654,7 +703,7 @@ private_action_commands = {
 		'help_text': "Unite mafia factions."
 	},
 	'vision': {
-		'function': private_action_default,
+		'function': private_action_vision,
 		'help_text': "Receive a vision about other players in the game."
 	},
 	'watch': {
