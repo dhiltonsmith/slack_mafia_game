@@ -311,6 +311,14 @@ def admin_initialize(command, message, client, meta_data):
 def admin_outputs (command, message, client, meta_data):
 	return "outputs"
 
+def admin_progress (command, message, client, meta_data):
+	response = game.command_game_progress(message)
+
+	if type(response) == list:
+		response = "*List of games*: {}".format(', '.join(response))
+
+	return response
+
 def admin_start (command, message, client, meta_data):
 	response = game.command_game_start(message)
 
@@ -349,6 +357,10 @@ admin_commands = {
 	'outputs': {
 		'function': admin_outputs,
 		'help_text': "Outputs in a game."
+	},
+	'progress': {
+		'function': admin_progress,
+		'help_text': "Progress a game to the next round."
 	},
 	'start': {
 		'function': admin_start,
@@ -418,9 +430,6 @@ def private_action_action(command, message, client, meta_data):
 
 	if type(response) == list:
 		response = "*List of actions*: {}".format(', '.join(response))
-	else:
-		if vampire_channel_id != meta_data['user_id']:
-			handler_post_message(client, vampire_channel_id, response)
 
 	return response
 

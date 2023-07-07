@@ -665,11 +665,28 @@ def record_action(game, player_id, channel_id, action_data):
 		action_storage_location[player_id] = action_data
 		return True
 
+def process_round(game, debug = False):
+	result = {}
+
+	round_info = command_initialize_round(game)
+	round_night_info = round_info['night']
+	if 'night_output' not in round_info:
+		round_night_info['night_output'] = {}
+	round_output_info = round_info['night_output']
+
+	actions_taken = 0
+
+
+	return result
+
 def collect_vote(user, vote, game_name, type='vote', location_override=''):
-	if len(location_override) == 0:
+	if location_override == '':
 		game_round = command_initialize_round(game_name)['day']
 	else:
 		game_round = location_override
+
+	if type not in game_round:
+		game_round[type] = {}
 
 	if vote not in game_round[type]:
 		game_round[type][vote] = []
@@ -816,7 +833,7 @@ def command_game_action(user, vote_action):
 	vote_cast = False
 
 	round_night_info = command_initialize_round(game)['night']
-	faction_round_night_info = round_night_info[players_in_games[user_id]['faction']]
+	faction_round_night_info = round_night_info['faction'][faction['name']]
 
 	for action in actions:
 		if action == vote_action:
@@ -831,7 +848,7 @@ def command_game_action(user, vote_action):
 					else:
 						response = "{}.  The {} will prepare to perform action {} at a later date.".format(response, faction['name'], action)
 					faction['action'] = action
-					round_night_info['faction'][faction['faction_name']]['action'] = {"type": "action", "value": action}
+					faction_round_night_info['action_selected'] = {"type": "action", "value": action}
 				else:
 					response = "{} has voted on action {}.  {} more votes needed to perform action {}.\n\n  To vote for this action, you can use the command:\n/mafia_private_action action {}".format(user_name, action, total_votes_needed - current_vote, action, action)
 				response_channel = faction['channel_id']
@@ -878,9 +895,9 @@ def command_game_attack(user, target_name, death_note, type = "attack"):
 		target = get_player(living_player)
 		living_players_human_readable.append(target['user_name'])
 		if target_name.replace('@', '') == target['user_name']:
-			action_data = {"type": "alert", "value": "alert", "death_note": death_note}
+			action_data = {"type": type, "value": living_player, "death_note": death_note}
 			if not record_action(game, player_id, channel_id, action_data):
-				response = "{} has decided not to {} a user.".format(user['user_name'], type)
+				response = "{} has decided not to {} {}.".format(user['user_name'], type, target['user_name'])
 			else:
 				response = "{} has decided to {} {}.".format(user['user_name'], type, target['user_name'])
 				if len(death_note) > 0:
@@ -1239,6 +1256,17 @@ def command_game_leave(meta_data):
 
 	return response_channel, response
 
+def command_game_progress(game):
+	if game in running_games:
+		process_round(game)
+#		running_games[game]['round'] += 1
+#		command_initialize_round(game)
+
+		store_game_state(running_games[game], "open")
+		return "*Progressing game {} to round {}.*".format(game, running_games[game]['round'])
+	else:
+		return list(running_games.keys())
+
 def command_game_start(game):
 	if game in running_games:
 		if 'players' in running_games[game] and len(running_games[game]['players']) >= running_games[game]['min_players']:
@@ -1309,7 +1337,7 @@ def command_initialize_round(game_name):
 		if int(round) - 1 not in game['round_data']:
 			total_votes = len(game['players'])
 		else:
-			total_votes = game['round_data'][round-1]['actions_take']
+			total_votes = game['round_data'][round-1]['night_output']['actions_taken']
 
 		game['round_data'][round]['required_vote'] = math.floor(total_votes/2) + 1
 
