@@ -319,6 +319,13 @@ def get_all_roles():
 def get_game(player_id):
 	return players_in_games[player_id]['game']
 
+def get_faction_by_name(game, faction_name):
+	for faction_id in running_games[game]['factions']:
+		faction = running_games[game]['factions'][faction_id]
+		if faction['name'] == faction_name:
+			return faction
+	return None
+
 def get_faction(player_id, type):
 	for faction_id in running_games[get_game(player_id)]['factions']:
 		faction = running_games[get_game(player_id)]['factions'][faction_id]
@@ -665,17 +672,66 @@ def record_action(game, player_id, channel_id, action_data):
 		action_storage_location[player_id] = action_data
 		return True
 
+def round_gather_actions(game, round_night_info, round_output_info):
+	actions_count = 0
+	actions = []
+
+	for faction_name in round_night_info['faction']:
+		faction = get_faction_by_name(game, faction_name)
+		if 'vampire_coven' == faction['type']:
+			if 'action' not in faction:
+				faction['action'] = 'convert'
+			if faction['action'] != 'standard':
+				for vampire in faction['players']:
+					if get_player_alive_status(vampire):
+						# These are recorded but don't count as their own unique action.
+						actions.append({"type": "vampire_role_block", "value": vampire})
+		for action_id in round_night_info['faction'][faction_name]:
+			if action_id in players_in_games:
+				round_night_info['faction'][faction_name][action_id].update({'user': action_id})
+				actions.append(round_night_info['faction'][faction_name][action_id])
+				actions_count += 1
+
+	for action_id in round_night_info['actions']:
+		if action_id in players_in_games:
+			round_night_info['actions'][action_id].update({'user': action_id})
+			actions.append(round_night_info['actions'][action_id])
+			actions_count += 1
+
+	round_output_info['actions'] = actions
+	round_output_info['actions_taken'] = actions_count
+
+def round_process_actions(game_name, round_night_info, round_output_info):
+	game = running_games[game_name]
+
+	# Possess
+	# Role Block
+	# Douse
+	# Examine
+	# Player Modification
+	# Ressurection
+	# Role Change
+	# Random Number Generator
+	# Investigation
+	# Mafia Merge
+	# Mulitple Attack
+	# Attack
+	# Event
+
 def process_round(game, debug = False):
 	result = {}
 
 	round_info = command_initialize_round(game)
 	round_night_info = round_info['night']
 	if 'night_output' not in round_info:
-		round_night_info['night_output'] = {}
+		round_info['night_output'] = {}
 	round_output_info = round_info['night_output']
 
-	actions_taken = 0
+	round_gather_actions(game, round_night_info, round_output_info)
+	round_process_actions(game, round_night_info, round_output_info)
+#	result = round_output_cleanup(game, round_night_info, round_output_info)
 
+	pp.pprint(round_info)
 
 	return result
 
