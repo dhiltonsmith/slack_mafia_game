@@ -89,7 +89,8 @@ fate from happening to anyone else.""",
 			"Veteran": {
 				"background": """You returned home from war only to find yourself in a new kind of war on the streets of the city you grew up in.  Wracked with PTSD and enough combat training 
 to make you a threat to anyone who would dare stand against you, you hunker down in your home waiting for the perfect opportunity to strike back.""",
-				"private_actions": ["alert"]
+				"private_actions": ["alert"],
+				"role_block_immune": True
 			},
 			"Vigilante": {
 				"background": """You walk the streets at night, safe in the knowledge that you alone can save the day.  With just a gun and the vague notion of justice on your side, you have 
@@ -121,17 +122,20 @@ who would like to see it fall.""",
 imagined how deep those ties went until they lost the popular vote.  In order to stay safe you had to change your identity and hide out, hoping that the Mafia and the former mayor would leave you alone, but 
 knowing that it was just a matter of time before you were found.""",
 				"public_actions": ["reveal"],
-				"unique": True
+				"unique": True,
+				"role_block_immune": True
 			},
 			"Medium": {
 				"background": """A gravedigger, one night you thought you heard voices coming from one of the freshly filled grave’s in the graveyard.  Over time you have come to accept and 
 even look forward to hearing the voices of the dead while you work.""",
-				"private_actions": ["apparate"]
+				"private_actions": ["apparate"],
+				"role_block_immune": True
 			},
 			"Police Officer": {
 				"background": """One of the few police officers who refused to take money from the Godfather, you do your best to do your job while also staying vigilant for the knife that your 
 fellow officers might be preparing to stab you in the back with.""",
-				"private_actions": ["role_block"]
+				"private_actions": ["role_block"],
+				"role_block_immune": True
 			},
 			"Resurrectionist": {
 				"background": """One night your apartment was broken into by members of the Mafia who demanded payment from your roommate, when they could not pay up they were executed and left 
@@ -171,12 +175,14 @@ to ensure that members of the Mafia are unrecognizable even when caught on camer
                 "MS": {
 			"Corrupt Police Officer": {
 				"background": """A police officer who is being paid off by the Godfather to help the Mafia accomplish it’s goals and turn a blind eye to the crimes that they commit.""",
-				"private_actions": ["role_block"]
+				"private_actions": ["role_block"],
+				"role_block_immune": True
 			},
 			"Corrupt Politician": {
 				"background": """A member of the former Mayor’s cabinet who acted as a liaison between the mayor and the Godfather.  They still hold some sway within the city.""",
 				"public_actions": ["reveal"],
-				"unique": True
+				"unique": True,
+				"role_block_immune": True
 			},
 			"Diplomat": {
 				"background": """A member of the Mafia dedicated to the idea that all of the families should be united under a single banner in order to better control the city.  They spend 
@@ -194,7 +200,8 @@ identified.""",
 Targeting businesses and civilians alike, the Godfather has used the Mafia to plunge the city into chaos and anarchy, establishing a kangaroo court in the town square and re-introducing public hangings as a 
 means of punishing those who oppose him.""",
 				"private_actions": ["attack", "promote"],
-				"unique": True
+				"unique": True,
+				"role_block_immune": True
 			}
 		},
         }, "Vampire Coven": {
@@ -207,21 +214,24 @@ means of punishing those who oppose him.""",
                 "NI": {
 			"Executioner": {
 				"background": """A former judge, they find the current kangaroo court that the Godfather has set up to be a mockery of the legal system and are dedicated to exposing it’s 
-cruelty by using it to execute someone under false pretenses."""
+cruelty by using it to execute someone under false pretenses.""",
+				"role_block_immune": True
 			}
 		},
                 "NK": {
 			"Jester": {
 				"background": """Driven mad by the chaos around them, their sole focus is on finding the sweet release of death through hanging.  It is as if a supernatural force is driving 
 them towards seeking this out and they feel as though something wonderful will happen if they are able to achieve their goal.""",
-				"private_actions": ["attack"]
+				"private_actions": ["attack"],
+				"role_block_immune": True
 			}
 		},
                 "NP": {
 			"Guardian Angel": {
 				"background": """They were granted mystical abilities one night and felt a deep desire to protect a specific individual within the town.  They don’t understand why they have 
 these abilities or why this person is so important but have accepted their role as a protector.""",
-				"private_actions": ["protect"]
+				"private_actions": ["protect"],
+				"role_block_immune": True
 			},
 			"Survivor": {
 				"background": """They’ve always been a survivalist, stocking up on supplies, preparing for doomsday scenarios and making contingency plans for every possible scenario.  When the 
@@ -660,6 +670,8 @@ def record_action(game, player_id, channel_id, action_data):
 	round_night_info = command_initialize_round(game)['night']
 	action_storage_location = round_night_info['actions']
 
+	action_data.update({'user': player_id})
+
 	for faction_id in running_games[game]['factions']:
 		faction = running_games[game]['factions'][faction_id]
 		if 'channel_id' in faction and channel_id == faction['channel_id']:
@@ -685,16 +697,15 @@ def round_gather_actions(game, round_night_info, round_output_info):
 				for vampire in faction['players']:
 					if get_player_alive_status(vampire):
 						# These are recorded but don't count as their own unique action.
-						actions.append({"type": "vampire_role_block", "value": vampire})
+						actions.append({'type': 'vampire_role_block', 'user': vampire, 'faction': faction_name})
 		for action_id in round_night_info['faction'][faction_name]:
 			if action_id in players_in_games:
-				round_night_info['faction'][faction_name][action_id].update({'user': action_id})
+				round_night_info['faction'][faction_name][action_id].update({'faction': faction_name})
 				actions.append(round_night_info['faction'][faction_name][action_id])
 				actions_count += 1
 
 	for action_id in round_night_info['actions']:
 		if action_id in players_in_games:
-			round_night_info['actions'][action_id].update({'user': action_id})
 			actions.append(round_night_info['actions'][action_id])
 			actions_count += 1
 
@@ -704,8 +715,11 @@ def round_gather_actions(game, round_night_info, round_output_info):
 def round_process_actions(game_name, round_night_info, round_output_info):
 	game = running_games[game_name]
 
+	round_output_info['messages'] = []
+
 	# Possess
 	# Role Block
+	process_actions_role_block(game_name, round_night_info, round_output_info)
 	# Douse
 	# Examine
 	# Player Modification
@@ -717,6 +731,60 @@ def round_process_actions(game_name, round_night_info, round_output_info):
 	# Mulitple Attack
 	# Attack
 	# Event
+
+def process_actions_role_block(game, round_night_info, round_output_info):
+	role_blocks = []
+	for action in round_output_info['actions']:
+		if 'role_block' in action['type']:
+			role_blocks.append(action)
+
+	for role_block in role_blocks:
+		action = role_block
+		if 'faction' in action:
+			channel = get_channel_id(game, action['faction'])
+		else:
+			channel = action['user']
+		if action['type'] == 'role_block':
+			target = get_player(action['target'])
+			message = "{} has been prevented from doing anything.".format(player['user_name'])
+			process_handle_role_block(round_output_info, action['user'], action['target'])
+			record_message(round_output_info, channel, message)
+		elif action['type'] == 'vampire_role_block':
+			process_handle_role_block(round_output_info, action['user'], action['user'], action['faction'])
+
+def process_handle_role_block(round_output_info, user_name, target_name, faction=''):
+	user = get_player(user_name)
+	target = get_player(target_name)
+
+	role_block_immune = False
+	role_blocked_actions = []
+
+	for role in target['roles']:
+		role_details = get_role_details(role['role_name'])
+		if 'role_block_immune' in role_details and role_details['role_block_immune']:
+			role_block_immune = role_details['role_block_immune']
+
+	for action in round_output_info['actions']:
+		if action['user'] == target_name:
+			if 'faction' in action:
+				channel = get_channel_id(target['game'], action['faction'])
+				noun = "you"
+			else:
+				channel = target_name
+				noun = target['user_name']
+			# Skip when it's vampire role block on self during vampire action.
+			if user == target and 'faction' in action and action['faction'] == faction:
+				continue
+			elif role_block_immune:
+				message = "Somebody tried to role block {}, but *you are immune*.".format(noun)
+			else:
+				message = "Somebody *role blocked {}*.".format(noun)
+				role_blocked_actions.append(action)
+
+			record_message(round_output_info, channel, message)
+
+	for action in role_blocked_actions:
+		round_output_info['actions'].remove(action)
 
 def process_round(game, debug = False):
 	result = {}
@@ -731,9 +799,10 @@ def process_round(game, debug = False):
 	round_process_actions(game, round_night_info, round_output_info)
 #	result = round_output_cleanup(game, round_night_info, round_output_info)
 
-	pp.pprint(round_info)
-
 	return result
+
+def record_message(round_output_info, message, channel):
+	round_output_info['messages'].append({"channel": channel, "message": message})
 
 def collect_vote(user, vote, game_name, type='vote', location_override=''):
 	if location_override == '':
