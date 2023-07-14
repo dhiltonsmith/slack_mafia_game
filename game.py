@@ -364,6 +364,28 @@ def get_role(input_role):
 						role_value['unique'] = game_roles[faction][category][role]['unique']
 					return role_value
 
+def get_kills_reveal(player, kills):
+	response = []
+
+	for kill in kills:
+		if kill['type'] != "hanging":
+			response.append("*{}* was killed by a *{}*.".format(player['user_name'], kill['killer_role']))
+		else:
+			continue
+
+	return response
+
+def get_killed_reveal(player):
+	response = []
+
+	for role in player['roles']:
+		if 'role_name' in role:
+			response.append("*{}* was a *{}*.".format(player['user_name'], role['role_name']))
+		else:
+			response.append("*{}* was a *-missing data error-*.".format(player['user_name']))
+
+	return response
+
 def get_role_reveal(player):
 	response = ""
 
@@ -690,6 +712,7 @@ def round_gather_actions(game, round_night_info, round_output_info):
 
 	for faction_name in round_night_info['faction']:
 		faction = get_faction_by_name(game, faction_name)
+		### TO DO: Godfather overriding mafioso action. ###
 		if 'vampire_coven' == faction['type']:
 			if 'action' not in faction:
 				faction['action'] = 'convert'
@@ -722,6 +745,7 @@ def round_process_actions(game_name, round_night_info, round_output_info):
 	process_actions_role_block(game_name, round_night_info, round_output_info)
 	# Douse
 	# Examine
+	process_actions_examine(game_name, round_night_info, round_output_info)
 	# Player Modification
 	# Ressurection
 	# Role Change
@@ -731,6 +755,48 @@ def round_process_actions(game_name, round_night_info, round_output_info):
 	# Mulitple Attack
 	# Attack
 	# Event
+
+def process_actions_examine(game_name, round_night_info, round_output_info):
+	game = running_games[game_name]
+
+	examinations = {}
+
+	for action in round_output_info['actions']:
+		kills_info = []
+		killed_info = []
+		if action['type'] == 'examine':
+			target_player_id = action['value']
+			target_player = get_player(action['value'])
+			player_deaths = target_player['deaths']
+			kills_info = get_kills_reveal(target_player, player_deaths)
+			killed_info = get_killed_reveal(target_player)
+		elif action['type'] == 'forge':
+			target_player_id = action['forged']
+			target_player = get_player(action['forged'])
+			forged_player = {"user_name": target_player['user_name'], 'roles': [{"role_name": action['forged_role']}]}
+			player_deaths = [action]
+			kills_info = get_kills_reveal(forged_player, player_deaths)
+			killed_info = get_killed_reveal(forged_player)
+
+		if target_player_id not in examinations:
+			examinations[target_player_id] = {'kills': [], 'killed': []}
+
+		examinations[target_player_id]['kills'] += kills_info
+		examinations[target_player_id]['kills'].sort()
+		examinations[target_player_id]['killed'] += killed_info
+		examinations[target_player_id]['killed'].sort()
+
+	channel = get_channel_id(game_name, "town")
+
+	for player in examinations:
+		for kill in examinations[player]['kills']:
+			if kill not in game['players'][player]['revealed_info']:
+				game['players'][player]['revealed_info'].append(kill)
+			record_message(round_output_info, channel, kill)
+		for killed in examinations[player]['killed']:
+			if killed not in game['players'][player]['revealed_info']:
+				game['players'][player]['revealed_info'].append(killed)
+			record_message(round_output_info, channel, killed)
 
 def process_actions_role_block(game, round_night_info, round_output_info):
 	role_blocks = []
@@ -795,6 +861,7 @@ def process_round(game, debug = False):
 		round_info['night_output'] = {}
 	round_output_info = round_info['night_output']
 
+#	round_assign_unassigned_players(game)
 	round_gather_actions(game, round_night_info, round_output_info)
 	round_process_actions(game, round_night_info, round_output_info)
 #	result = round_output_cleanup(game, round_night_info, round_output_info)
@@ -1217,7 +1284,7 @@ def command_game_hang(user, hanging_user):
 					current_votes = len(round_day_info['hang_vote'][hanging_user['user_id']])
 					total_votes_needed = len(running_games[game]['jurors'])
 					if current_votes >= total_votes_needed:
-						round_info['day']['hanging'][hanging_user['user_id']] = game_players[player]
+						round_info['day']['hanging'][hanging_user['user_id']] = True
 						game_players[player]['status'] = 'dead'
 
 						if 'deaths' not in game_players[player]:
