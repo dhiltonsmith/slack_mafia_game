@@ -23,8 +23,14 @@ ROUND_LENGTH = 24
 TOWN_NAME = "TOWN"
 MIN_FACTION_SIZE = 1
 
+ATTACK_LEVELS = ["No Attack", "Basic Attack", "Unstoppable Attack"]
+DEFENSE_LEVELS = ["No Defense", "Basic Defense", "Unbreakable Defense"]
+
 game_roles={
         "Town": {
+		"Data": {
+			"alignment": "good"
+		},
                 "TI": {
 			"Detective": {
 				"background": """Raised in the city, the detective has seen first hand the devastating effect crime has had and will stop at nothing to protect their home. They are not above 
@@ -80,6 +86,7 @@ better use.  Instead of following the rich and famous they began to follow rando
 		},
                 "TK": {
 			"Vampire Hunter": {
+				"attack": 2,
 				"background": """One day after returning home from work you stumbled upon your spouse laying in bed with two deep puncture marks on her neck.  When you checked their pulse, you 
 found none and their skin was cold to the touch, just before dialing 911 you called their name and their eyes snapped open at the sound of your voice.  They launched from the bed and lunged at you but you were 
 quicker and happened to grab a piece of splintered wood that had been sitting on top of the nightstand, stabbing them in the chest.  As they died in your arms you realized that it was your duty to prevent this 
@@ -87,12 +94,14 @@ fate from happening to anyone else.""",
 				"private_actions": ["investigate", "stake"]
 			},
 			"Veteran": {
+				"attack": 2,
 				"background": """You returned home from war only to find yourself in a new kind of war on the streets of the city you grew up in.  Wracked with PTSD and enough combat training 
 to make you a threat to anyone who would dare stand against you, you hunker down in your home waiting for the perfect opportunity to strike back.""",
 				"private_actions": ["alert"],
 				"role_block_immune": True
 			},
 			"Vigilante": {
+				"attack": 1,
 				"background": """You walk the streets at night, safe in the knowledge that you alone can save the day.  With just a gun and the vague notion of justice on your side, you have 
 decided to take the city back, even if you have to do it yourself.""",
 				"private_actions": ["attack"]
@@ -100,6 +109,7 @@ decided to take the city back, even if you have to do it yourself.""",
 		},
                 "TP": {
 			"Bodyguard": {
+				"attack": 2,
 				"background": """You used to be the bouncer at a popular club, but all of the clubs have been abandoned, now you sell your services as a bodyguard, protecting whomever is 
 willing to pay for your services.  Sometimes you feel guilty that you aren’t doing more to protect the city, but protecting the city isn’t going to pay the bills.""",
 				"private_actions": ["protect"]
@@ -110,6 +120,7 @@ whatever you can to nurse them back to health.  Someday you hope to return to th
 				"private_actions": ["protect"]
 			},
 			"Secret Service": {
+				"attack": 1,
 				"background": """A security guard for the former mayor, you were present for many meetings where illegal business was discussed, it was an unpleasant experience and you were 
 tempted to file an anonymous report but never got the courage to go through with it.  Now that the new mayor has gone into hiding, you have decided to use your skills to defend the city against the criminals 
 who would like to see it fall.""",
@@ -145,6 +156,9 @@ order to prevent the Mafia from exploit it.""",
 			}
 		}
         }, "Mafia": {
+		"Data": {
+			"alignment": "evil"
+		},
                 "MI": {
 			"Consigliere": {
 				"background": """A secretary in the former Mayor’s cabinet, they retained access to the FBI database in order to better help the Mafia identify and eliminate their competition 
@@ -154,11 +168,13 @@ within the city.  They do their best to stay under the radar in order to avoid r
 		},
                 "MK": {
 			"Ambusher": {
+				"attack": 1,
 				"background": """An eager young member of the mafia looking to prove their worth to the Godfather, they are still a little sloppy often leaving behind evidence of their crimes.  
 They hope to someday be promoted into the role of Mafioso in order to better server the Mafia.""",
 				"private_actions": ["ambush"]
 			},
 			"Mafioso": {
+				"attack": 1,
 				"background": """The second in command within the Mafia, hand picked by the current Godfather to someday take over the Mafia themselves.  They want nothing else but to prove 
 their worth and step into the leadership role that they were chosen for.""",
 				"private_actions": ["attack"],
@@ -196,30 +212,40 @@ identified.""",
 				"private_actions": ["forge"]
 			},
 			"Godfather": {
+				"attack": 1,
 				"background": """A childhood friend of the former Mayor, the Godfather became upset when they lost the election and vowed to make the new Mayor regret running for office.  
 Targeting businesses and civilians alike, the Godfather has used the Mafia to plunge the city into chaos and anarchy, establishing a kangaroo court in the town square and re-introducing public hangings as a 
 means of punishing those who oppose him.""",
+				"defense": 1,
 				"private_actions": ["attack", "promote"],
 				"unique": True,
 				"role_block_immune": True
 			}
 		},
         }, "Vampire Coven": {
+		"Data": {
+			"alignment": "evil"
+		},
                 "VK": {
 			"Vampire": {
+				"attack": 1,
 				"background": """The vampire coven views the citizens of the city as a source of food and any group that takes their food from them as an enemy that needs to be eliminated.""",
 			}
 		}
         }, "Neutral": {
+		"Data": {
+			"alignment": "neutral"
+		},
                 "NI": {
 			"Executioner": {
 				"background": """A former judge, they find the current kangaroo court that the Godfather has set up to be a mockery of the legal system and are dedicated to exposing it’s 
 cruelty by using it to execute someone under false pretenses.""",
-				"role_block_immune": True
+				"role_block_immune": True,
 			}
 		},
                 "NK": {
 			"Jester": {
+				"attack": 2,
 				"background": """Driven mad by the chaos around them, their sole focus is on finding the sweet release of death through hanging.  It is as if a supernatural force is driving 
 them towards seeking this out and they feel as though something wonderful will happen if they are able to achieve their goal.""",
 				"private_actions": ["attack"],
@@ -247,6 +273,9 @@ were.  Every night they feel drawn to visit the local cemetery."""
 				"private_actions": ["become"]
 		}
         }, "Evil": {
+		"Data": {
+                        "alignment": "evil"
+                },
                 "EI": {
 			"Cultist": {
 				"background": """A former cult member, they were granted unusual abilities by a supernatural force the night that their former cult leader was executed by the city.  They are in 
@@ -264,30 +293,45 @@ from the encounter they took a look at themself in the mirror and noticed that t
 		}
         },
 	"Fire Starter": {
+		"Data": {
+			"alignment": "evil"
+		},
 		"FK": {
 			"Fire Starter": {
+				"attack": 2,
 				"background": """A librarian by trade, they lived a relatively peaceful life until the day the former mayor passed a law outlawing the possession and distribution of books.  
 Soon after the law was passed the cities libraries were closed and their employees were forced to burn the collection they had spent their lives collecting and preserving. For most it was a difficult task, but 
 for some it was an awakening which grew into an obsession that carried them far beyond the walls of the library.""",
+				"defense": 1,
 				"private_actions": ["douse", "ignite"]
 			}
 		}
 	},
 	"Renegade": {
+		"Data": {
+			"alignment": "evil"
+		},
 		"RK": {
 			"Renegade": {
+				"attack": 1,
 				"background": """Either because of a lack of oversight or a mistake in the clerks office a convicted serial killer has been released onto the streets.  It didn’t take long 
 before they started killing again.""",
+				"defense": 1,
 				"private_actions": ["attack"]
 			}
 		}
 	},
 	"Werewolf": {
+		"Data": {
+			"alignment": "evil"
+		},
 		"WK": {
 			"Werewolf": {
+				"attack": 2,
 				"background": """When they were young a wolf bit them in the arm, ever since then every other night they transform into a rampaging monster.  They have done their best to avoid 
 detection by chaining themself to your bed each night to prevent themself from harming others, but recently they noticed that the chains they were using are starting to fall apart and one of them appears to 
 have broken last night.""",
+				"defense": 1,
 				"private_actions": ["attack"]
 			}
 		}
@@ -538,6 +582,13 @@ def get_role_details(selected_role):
 		for category in game_roles[faction].keys():
 			for role in game_roles[faction][category]:
 				if role == selected_role:
+					if 'Data' in game_roles[faction]:
+						game_roles[faction][category][role].update(game_roles[faction]['Data'])
+					if 'attack' not in game_roles[faction][category][role]:
+						game_roles[faction][category][role]['attack'] = 0
+					if 'defense' not in game_roles[faction][category][role]:
+						game_roles[faction][category][role]['defense'] = 0
+					pp.pprint(game_roles[faction][category][role])
 					return game_roles[faction][category][role]
 	return {}
 
